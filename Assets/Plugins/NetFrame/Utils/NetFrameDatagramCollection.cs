@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace NetFrame.Datagrams
+namespace NetFrame.Utils
 {
     public class NetFrameDatagramCollection
     {
