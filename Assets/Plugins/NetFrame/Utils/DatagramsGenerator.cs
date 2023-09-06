@@ -67,7 +67,7 @@ namespace NetFrame.Utils
             stringBuilder.AppendLine("\t}");
             stringBuilder.AppendLine("}");
             
-            var outputPath = Path.Combine(_path, "NetFrame", "Datagrams", className + ".cs");
+            var outputPath = Path.Combine(_path, "NetFrame", "Utils", className + ".cs");
             File.WriteAllText(outputPath, stringBuilder.ToString());
         }
     }
