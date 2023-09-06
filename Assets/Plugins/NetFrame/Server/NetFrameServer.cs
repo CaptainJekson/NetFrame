@@ -1,0 +1,163 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
+using NetFrame.Constants;
+using NetFrame.Datagrams;
+using NetFrame.Utils;
+using NetFrame.WriteAndRead;
+
+namespace NetFrame.Server
+{
+    public class NetFrameServer
+    {
+        private TcpListener _tcpServer;
+        private int _maxClient;
+        private int _receiveBufferSize;
+        private int _writeBufferSize;
+        private Dictionary<int, NetFrameClientOnServer> _clients;
+
+        private NetFrameWriter _writer;
+        private NetFrameByteConverter _byteConverter;
+        private ConcurrentDictionary<Type, Delegate> _handlers;
+        private NetFrameDatagramCollection _datagramCollection;
+
+        public event Action<int> ClientConnection;
+        public event Action<int> ClientDisconnect;
+
+        public void Start(int port, int maxClient, int receiveBufferSize = 1024, int writeBufferSize = 1024)
+        {
+            _tcpServer = new TcpListener(IPAddress.Any, port);
+            _maxClient = maxClient;
+            _clients = new Dictionary<int, NetFrameClientOnServer>();
+            _byteConverter = new NetFrameByteConverter();
+            _handlers = new ConcurrentDictionary<Type, Delegate>();
+            _datagramCollection = new NetFrameDatagramCollection();
+            
+            _receiveBufferSize = receiveBufferSize;
+            _writeBufferSize = writeBufferSize;
+            
+            _tcpServer.Start();
+
+            _writer = new NetFrameWriter(_writeBufferSize);
+        }
+
+        public void ChangeReceiveBufferSize(int newSize)
+        {
+            _receiveBufferSize = newSize;
+        }
+
+        public void ChangeWriteBufferSize(int newSize)
+        {
+            _writeBufferSize = newSize;
+            _writer = new NetFrameWriter(_writeBufferSize);
+        }
+
+        public async void Run()
+        {
+            CheckDisconnectClients();
+            var client = await _tcpServer.AcceptTcpClientAsync();
+
+            if (_clients.Count == _maxClient)
+            {
+                Console.WriteLine("Maximum number of clients exceeded");
+                return;
+            }
+
+            var clientId = 0;
+            if (_clients.Count == 0)
+            {
+                clientId = 0;
+            }
+            else
+            {
+                clientId = _clients.Last().Key + 1;
+            }
+
+            var netFrameClientOnServer = new NetFrameClientOnServer(clientId, client, _handlers, 
+                _receiveBufferSize, _datagramCollection);
+            
+            netFrameClientOnServer.BeginReadBytes();
+
+            _clients.Add(clientId, netFrameClientOnServer);
+
+            ClientConnection?.Invoke(_clients.Last().Key);
+        }
+
+        public void Send<T>(ref T datagram, int clientId) where T : struct, INetFrameDatagram
+        {
+            var client = _clients[clientId];
+            var clientStream = client.TcpSocket.GetStream();
+
+            _writer.Reset();
+            datagram.Write(_writer);
+
+            var separator = '\n';
+            var headerDatagram = GetDatagramTypeName(datagram) + separator;
+
+            var heaterDatagram = Encoding.UTF8.GetBytes(headerDatagram);
+            var dataDatagram = _writer.ToArraySegment();
+            var allData = heaterDatagram.Concat(dataDatagram).ToArray();
+
+            var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
+            var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
+            var allPackage = sizeBytes.Concat(allData).ToArray();
+
+            Task.Run(async () => { await SendAsync(clientStream, allPackage); });
+        }
+
+        public void SendAll<T>(ref T datagram) where T : struct, INetFrameDatagram
+        {
+            foreach (var clientId in _clients.Keys)
+            {
+                Send(ref datagram, clientId);
+            }
+        }
+
+        public void Subscribe<T>(Action<T, int> handler) where T : struct, INetFrameDatagram
+        {
+            _handlers.AddOrUpdate(typeof(T), handler, (_, currentHandler) => (Action<T, int>)currentHandler + handler);
+        }
+
+        public void Unsubscribe<T>(Action<T, int> handler) where T : struct, INetFrameDatagram
+        {
+            _handlers.TryRemove(typeof(T), out var currentHandler);
+        }
+
+        private void CheckDisconnectClients()
+        {
+            foreach (var client in _clients.ToList())
+            {
+                if (!client.Value.TcpSocket.Client.Poll(0, SelectMode.SelectRead))
+                {
+                    continue;
+                }
+
+                var buff = new byte[1];
+
+                if (client.Value.TcpSocket.Client.Receive(buff, SocketFlags.Peek) != 0)
+                {
+                    continue;
+                }
+
+                ClientDisconnect?.Invoke(client.Key);
+                client.Value.Disconnect();
+                _clients.Remove(client.Key);
+            }
+        }
+
+        private async Task SendAsync(NetworkStream networkStream, ArraySegment<byte> data)
+        {
+            await networkStream.WriteAsync(data);
+        }
+
+        private string GetDatagramTypeName<T>(T datagram) where T : struct, INetFrameDatagram
+        {
+            return typeof(T).Name;
+        }
+    }
+}
