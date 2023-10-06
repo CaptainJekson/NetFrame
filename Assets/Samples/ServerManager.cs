@@ -45,5 +45,10 @@ namespace Samples
             Server.ClientConnection -= OnClientConnection;
             Server.ClientDisconnect -= OnClientDisconnect;
         }
+        
+        private void OnApplicationQuit()
+        {
+            Server.Stop();
+        }
     }
 }

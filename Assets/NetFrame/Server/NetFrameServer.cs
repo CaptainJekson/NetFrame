@@ -45,6 +45,11 @@ namespace NetFrame.Server
             _writer = new NetFrameWriter(_writeBufferSize);
         }
 
+        public void Stop()
+        {
+            _tcpServer.Stop();
+        }
+
         public void ChangeReceiveBufferSize(int newSize)
         {
             _receiveBufferSize = newSize;
