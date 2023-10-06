@@ -131,6 +131,12 @@ namespace NetFrame.Server
         {
             foreach (var client in _clients.ToList())
             {
+                if (!client.Value.TcpSocket.Client.Connected)
+                {
+                    ClientDisconnect?.Invoke(client.Key);
+                    _clients.Remove(client.Key);
+                }
+                
                 if (!client.Value.TcpSocket.Client.Poll(0, SelectMode.SelectRead))
                 {
                     continue;
