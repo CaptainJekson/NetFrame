@@ -18,7 +18,7 @@ namespace Samples
             _client.Connect("127.0.0.1", 8080);
 
             _client.Disconnected += OnDisconnected;
-            _client.ConnectedFailed += OnConnectedFailed;
+            _client.ConnectedFailed += OnConnectedFailed; //todo не работает
         }
 
         private void OnDisconnected()
@@ -43,6 +43,11 @@ namespace Samples
         {
             _client.Disconnected -= OnDisconnected;
             _client.ConnectedFailed -= OnConnectedFailed;
+        }
+
+        private void OnApplicationQuit()
+        {
+            _client.Disconnect();
         }
     }
 }
