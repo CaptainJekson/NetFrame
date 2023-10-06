@@ -1,6 +1,6 @@
 namespace NetFrame
 {
-    public interface INetFrameDatagram : IReadable, IWriteable
+    public interface INetFrameDatagram : IWriteable, IReadable
     {
     }
 }

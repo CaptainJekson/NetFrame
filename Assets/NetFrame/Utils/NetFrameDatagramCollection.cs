@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 
+using Samples.Datagrams;
 
 namespace NetFrame.Utils
 {
@@ -11,6 +12,7 @@ namespace NetFrame.Utils
 		{
 			_datagrams = new Dictionary<string, INetFrameDatagram>();
 
+			_datagrams.Add("TestByteDatagram", new TestByteDatagram());
 		}
 
 		public INetFrameDatagram GetDatagramByKey(string key)

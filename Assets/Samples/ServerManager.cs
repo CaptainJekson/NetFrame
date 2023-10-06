@@ -6,19 +6,23 @@ namespace Samples
 {
     public class ServerManager : MonoBehaviour
     {
-        private NetFrameServer _server;
+        public static ServerManager Instance;
+        public NetFrameServer Server;
+        
         private DatagramsGenerator _datagramsGenerator;
         
         private void Start()
         {
+            Instance = this;
+            
             _datagramsGenerator = new DatagramsGenerator(Application.dataPath);
-            _server = new NetFrameServer();
+            Server = new NetFrameServer();
             
             _datagramsGenerator.Run();
-            _server.Start(8080, 10);
+            Server.Start(8080, 10);
 
-            _server.ClientConnection += OnClientConnection;
-            _server.ClientDisconnect += OnClientDisconnect;
+            Server.ClientConnection += OnClientConnection;
+            Server.ClientDisconnect += OnClientDisconnect;
         }
 
         private void OnClientConnection(int id)
@@ -33,13 +37,13 @@ namespace Samples
 
         private void Update()
         {
-            _server.Run();
+            Server.Run();
         }
 
         private void OnDestroy()
         {
-            _server.ClientConnection -= OnClientConnection;
-            _server.ClientDisconnect -= OnClientDisconnect;
+            Server.ClientConnection -= OnClientConnection;
+            Server.ClientDisconnect -= OnClientDisconnect;
         }
     }
 }

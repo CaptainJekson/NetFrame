@@ -6,19 +6,23 @@ namespace Samples
 {
     public class ClientManager : MonoBehaviour
     {
-        private NetFrameClient _client;
+        public static ClientManager Instance;
+        public NetFrameClient Client;
+        
         private DatagramsGenerator _datagramsGenerator;
 
         private void Start()
         {
+            Instance = this;
+            
             _datagramsGenerator = new DatagramsGenerator(Application.dataPath);
-            _client = new NetFrameClient();
+            Client = new NetFrameClient();
             
             _datagramsGenerator.Run();
-            _client.Connect("127.0.0.1", 8080);
+            Client.Connect("127.0.0.1", 8080);
 
-            _client.Disconnected += OnDisconnected;
-            _client.ConnectedFailed += OnConnectedFailed; //todo не работает
+            Client.Disconnected += OnDisconnected;
+            Client.ConnectedFailed += OnConnectedFailed; //todo не работает
         }
 
         private void OnDisconnected()
@@ -35,19 +39,19 @@ namespace Samples
         {
             if (Input.GetKeyDown(KeyCode.D))
             {
-                _client.Disconnect();
+                Client.Disconnect();
             }
         }
 
         private void OnDestroy()
         {
-            _client.Disconnected -= OnDisconnected;
-            _client.ConnectedFailed -= OnConnectedFailed;
+            Client.Disconnected -= OnDisconnected;
+            Client.ConnectedFailed -= OnConnectedFailed;
         }
 
         private void OnApplicationQuit()
         {
-            _client.Disconnect();
+            Client.Disconnect();
         }
     }
 }
