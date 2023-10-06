@@ -135,6 +135,7 @@ namespace NetFrame.Server
                 {
                     ClientDisconnect?.Invoke(client.Key);
                     _clients.Remove(client.Key);
+                    continue;
                 }
                 
                 if (!client.Value.TcpSocket.Client.Poll(0, SelectMode.SelectRead))
