@@ -40,9 +40,11 @@ namespace NetFrame.Server
             _receiveBufferSize = receiveBufferSize;
             _writeBufferSize = writeBufferSize;
             
-            _tcpServer.Start();
-
             _writer = new NetFrameWriter(_writeBufferSize);
+
+            _tcpServer.Start();
+            
+            _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, _tcpServer);
         }
 
         public void Stop()
@@ -60,24 +62,23 @@ namespace NetFrame.Server
             _writeBufferSize = newSize;
             _writer = new NetFrameWriter(_writeBufferSize);
         }
-
+        
         public async void Run()
         {
             CheckDisconnectClients();
+        }
 
-            if (_tcpServer.Server == null || !_tcpServer.Server.Connected)
-            {
-                return;
-            }
-            
-            var client = await _tcpServer.AcceptTcpClientAsync();
+        private void ConnectedClientCallback(IAsyncResult result)
+        {
+            var listener = (TcpListener) result.AsyncState;
+            var client = listener.EndAcceptTcpClient(result);
             
             if (_clients.Count == _maxClient)
             {
                 Console.WriteLine("Maximum number of clients exceeded");
                 return;
             }
-
+             
             var clientId = 0;
             if (_clients.Count == 0)
             {
@@ -87,15 +88,17 @@ namespace NetFrame.Server
             {
                 clientId = _clients.Last().Key + 1;
             }
-
+             
             var netFrameClientOnServer = new NetFrameClientOnServer(clientId, client, _handlers, 
                 _receiveBufferSize, _datagramCollection);
-            
+             
             netFrameClientOnServer.BeginReadBytes();
-
+             
             _clients.Add(clientId, netFrameClientOnServer);
-
+             
             ClientConnection?.Invoke(_clients.Last().Key);
+
+            _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, null);
         }
 
         public void Send<T>(ref T datagram, int clientId) where T : struct, INetFrameDatagram
