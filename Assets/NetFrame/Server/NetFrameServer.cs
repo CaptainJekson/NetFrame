@@ -64,8 +64,9 @@ namespace NetFrame.Server
         public async void Run()
         {
             CheckDisconnectClients();
+            
             var client = await _tcpServer.AcceptTcpClientAsync();
-
+            
             if (_clients.Count == _maxClient)
             {
                 Console.WriteLine("Maximum number of clients exceeded");
@@ -136,7 +137,7 @@ namespace NetFrame.Server
         {
             foreach (var client in _clients.ToList())
             {
-                if (!client.Value.TcpSocket.Client.Connected)
+                if (!client.Value.TcpSocket.Connected)
                 {
                     ClientDisconnect?.Invoke(client.Key);
                     _clients.Remove(client.Key);
