@@ -63,7 +63,7 @@ namespace NetFrame.Server
             _writer = new NetFrameWriter(_writeBufferSize);
         }
         
-        public async void Run()
+        public void Run()
         {
             CheckDisconnectClients();
         }
