@@ -64,6 +64,11 @@ namespace NetFrame.Server
         public async void Run()
         {
             CheckDisconnectClients();
+
+            if (_tcpServer.Server == null || !_tcpServer.Server.Connected)
+            {
+                return;
+            }
             
             var client = await _tcpServer.AcceptTcpClientAsync();
             
