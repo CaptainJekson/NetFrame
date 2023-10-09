@@ -54,6 +54,13 @@ namespace NetFrame.Server
 
         public void Stop()
         {
+            foreach (var client in _clients)
+            {
+                client.Value.Disconnect();
+            }
+            
+            _clients.Clear();
+            
             _tcpServer.Stop();
             _tcpServer.Server.Disconnect(false);
             _tcpServer.Server.Dispose();

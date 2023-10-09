@@ -13,6 +13,7 @@ namespace NetFrame.Utils
 			_datagrams = new Dictionary<string, INetFrameDatagram>();
 
 			_datagrams.Add("TestByteDatagram", new TestByteDatagram());
+			_datagrams.Add("TestStringIntDatagram", new TestStringIntDatagram());
 		}
 
 		public INetFrameDatagram GetDatagramByKey(string key)
