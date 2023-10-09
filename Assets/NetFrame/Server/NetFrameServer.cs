@@ -46,10 +46,16 @@ namespace NetFrame.Server
             
             _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, _tcpServer);
         }
+        
+        public void Run()
+        {
+            CheckDisconnectClients();
+        }
 
         public void Stop()
         {
             _tcpServer.Stop();
+            _tcpServer.Server.Disconnect(false);
         }
 
         public void ChangeReceiveBufferSize(int newSize)
@@ -61,11 +67,6 @@ namespace NetFrame.Server
         {
             _writeBufferSize = newSize;
             _writer = new NetFrameWriter(_writeBufferSize);
-        }
-        
-        public void Run()
-        {
-            CheckDisconnectClients();
         }
 
         private void ConnectedClientCallback(IAsyncResult result)
@@ -120,7 +121,10 @@ namespace NetFrame.Server
             var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
             var allPackage = sizeBytes.Concat(allData).ToArray();
 
-            Task.Run(async () => { await SendAsync(clientStream, allPackage); });
+            Task.Run(async () =>
+            {
+                await SendAsync(clientStream, allPackage);
+            });
         }
 
         public void SendAll<T>(ref T datagram) where T : struct, INetFrameDatagram
@@ -141,6 +145,16 @@ namespace NetFrame.Server
             _handlers.TryRemove(typeof(T), out var currentHandler);
         }
 
+        private async Task SendAsync(NetworkStream networkStream, ArraySegment<byte> data)
+        {
+            await networkStream.WriteAsync(data);
+        }
+
+        private string GetDatagramTypeName<T>(T datagram) where T : struct, INetFrameDatagram
+        {
+            return typeof(T).Name;
+        }
+        
         private void CheckDisconnectClients()
         {
             foreach (var client in _clients.ToList())
@@ -168,16 +182,6 @@ namespace NetFrame.Server
                 client.Value.Disconnect();
                 _clients.Remove(client.Key);
             }
-        }
-
-        private async Task SendAsync(NetworkStream networkStream, ArraySegment<byte> data)
-        {
-            await networkStream.WriteAsync(data);
-        }
-
-        private string GetDatagramTypeName<T>(T datagram) where T : struct, INetFrameDatagram
-        {
-            return typeof(T).Name;
         }
     }
 }

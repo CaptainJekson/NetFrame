@@ -43,9 +43,16 @@ namespace Samples
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.D))
+            Client.Run();
+            
+            if (Input.GetKeyDown(KeyCode.D)) //Disconnect
             {
                 Client.Disconnect();
+            }
+
+            if (Input.GetKeyDown(KeyCode.C)) //Reconnection
+            {
+                Client.Connect("127.0.0.1", 8080);
             }
         }
 

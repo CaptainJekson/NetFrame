@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NetFrame.Constants;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using UnityEngine;
 
 namespace NetFrame.Client
 {
@@ -46,7 +47,12 @@ namespace NetFrame.Client
 
             _tcpSocket.BeginConnect(host, port, BeginConnectCallback, _tcpSocket);
         }
-        
+
+        public void Run()
+        {
+            CheckDisconnectToServer();
+        }
+
         public void ChangeReceiveBufferSize(int newSize)
         {
             _receiveBufferSize = newSize;
@@ -60,7 +66,7 @@ namespace NetFrame.Client
 
         private void BeginConnectCallback(IAsyncResult result)
         {
-            var tcpSocket = (TcpClient)result.AsyncState;
+            var tcpSocket = (TcpClient) result.AsyncState;
 
             if (!tcpSocket.Connected)
             {
@@ -174,9 +180,16 @@ namespace NetFrame.Client
             var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
             var allPackage = sizeBytes.Concat(allData).ToArray();
 
-            Task.Run(async () => { await SendAsync(_networkStream, allPackage); });
+            Task.Run(async () =>
+            {
+                await SendAsync(_networkStream, allPackage);
+            });
         }
         
+        private async Task SendAsync(NetworkStream networkStream, ArraySegment<byte> data)
+        {
+            await networkStream.WriteAsync(data);
+        }
 
         public void Subscribe<T>(Action<T> handler) where T : struct, INetFrameDatagram
         {
@@ -188,14 +201,34 @@ namespace NetFrame.Client
             _handlers.TryRemove(typeof(T), out var currentHandler);
         }
 
-        private async Task SendAsync(NetworkStream networkStream, ArraySegment<byte> data)
-        {
-            await networkStream.WriteAsync(data);
-        }
-
         private string GetDatagramTypeName<T>(T datagram) where T : struct, INetFrameDatagram
         {
             return typeof(T).Name;
+        }
+        
+        private void CheckDisconnectToServer()
+        {
+            if (!_tcpSocket.Connected)
+            {
+                return;
+            }
+            
+            if (!_tcpSocket.Client.Poll(0, SelectMode.SelectRead))
+            {
+                return;
+            }
+            
+            var buff = new byte[1];
+            
+            
+            if (_tcpSocket.Client.Receive(buff, SocketFlags.Peek) != 0)
+            {
+                return;
+            }
+            
+            _tcpSocket.Client.Disconnect(false);
+            
+            Debug.LogError("Разрыв с сервером");
         }
     }
 }
