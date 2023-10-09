@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using NetFrame.Constants;
+using NetFrame.Enums;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
 
@@ -26,7 +27,7 @@ namespace NetFrame.Client
         private ConcurrentDictionary<Type, Delegate> _handlers;
         private NetFrameDatagramCollection _datagramCollection;
 
-        public event Action<string> ConnectedFailed;
+        public event Action<ReasonServerConnectionFailed> ConnectedFailed;
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
 
@@ -34,7 +35,7 @@ namespace NetFrame.Client
         {
             if (_tcpSocket != null && _tcpSocket.Connected)
             {
-                ConnectedFailed?.Invoke("Already connected to the server");
+                ConnectedFailed?.Invoke(ReasonServerConnectionFailed.AlreadyConnected);
                 return;
             }
             
@@ -75,7 +76,7 @@ namespace NetFrame.Client
 
             if (!tcpSocket.Connected)
             {
-                ConnectedFailed?.Invoke("Can't connect to server");
+                ConnectedFailed?.Invoke(ReasonServerConnectionFailed.ImpossibleToConnect);
                 return;
             }
 
@@ -234,7 +235,7 @@ namespace NetFrame.Client
             
             _tcpSocket.Client.Disconnect(false);
             
-            ConnectedFailed?.Invoke("Connection to the server is lost");
+            ConnectedFailed?.Invoke(ReasonServerConnectionFailed.ConnectionLost);
         }
     }
 }

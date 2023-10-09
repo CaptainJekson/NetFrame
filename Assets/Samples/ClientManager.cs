@@ -1,4 +1,6 @@
+using System;
 using NetFrame.Client;
+using NetFrame.Enums;
 using NetFrame.Utils;
 using UnityEngine;
 
@@ -36,9 +38,22 @@ namespace Samples
             Debug.Log("Connected Successful to server");
         }
         
-        private void OnConnectedFailed(string errorMessage)
+        private void OnConnectedFailed(ReasonServerConnectionFailed reason)
         {
-            Debug.LogError($"{errorMessage}");
+            switch (reason)
+            {
+                case ReasonServerConnectionFailed.AlreadyConnected:
+                    Debug.LogError("already connected");
+                    break;
+                case ReasonServerConnectionFailed.ImpossibleToConnect:
+                    Debug.LogError("impossible to connect");
+                    break;
+                case ReasonServerConnectionFailed.ConnectionLost:
+                    Debug.LogError("connection lost");
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(reason), reason, null);
+            }
         }
 
         private void Update()
