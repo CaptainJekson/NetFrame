@@ -56,6 +56,7 @@ namespace NetFrame.Server
         {
             _tcpServer.Stop();
             _tcpServer.Server.Disconnect(false);
+            _tcpServer.Server.Dispose();
         }
 
         public void ChangeReceiveBufferSize(int newSize)

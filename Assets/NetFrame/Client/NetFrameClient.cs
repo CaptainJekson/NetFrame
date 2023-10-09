@@ -208,7 +208,7 @@ namespace NetFrame.Client
         
         private void CheckDisconnectToServer()
         {
-            if (!_tcpSocket.Connected)
+            if (_tcpSocket == null || !_tcpSocket.Connected)
             {
                 return;
             }
