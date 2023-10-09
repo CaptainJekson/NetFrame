@@ -21,8 +21,9 @@ namespace Samples
             _datagramsGenerator.Run();
             Client.Connect("127.0.0.1", 8080);
 
+            Client.ConnectionSuccessful += OnConnectionSuccessful;
+            Client.ConnectedFailed += OnConnectedFailed;
             Client.Disconnected += OnDisconnected;
-            Client.ConnectedFailed += OnConnectedFailed; //todo не работает
         }
 
         private void OnDisconnected()
@@ -30,9 +31,14 @@ namespace Samples
             Debug.Log("Disconnected from the server");
         }
         
-        private void OnConnectedFailed(string message)
+        private void OnConnectionSuccessful()
         {
-            Debug.LogError($"error connecting to server {message}");
+            Debug.Log("Connected Successful to server");
+        }
+        
+        private void OnConnectedFailed()
+        {
+            Debug.LogError($"Connected Failed to server");
         }
 
         private void Update()
@@ -45,8 +51,9 @@ namespace Samples
 
         private void OnDestroy()
         {
-            Client.Disconnected -= OnDisconnected;
+            Client.ConnectionSuccessful -= OnConnectionSuccessful;
             Client.ConnectedFailed -= OnConnectedFailed;
+            Client.Disconnected -= OnDisconnected;
         }
 
         private void OnApplicationQuit()

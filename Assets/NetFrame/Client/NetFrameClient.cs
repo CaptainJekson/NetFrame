@@ -26,21 +26,13 @@ namespace NetFrame.Client
         private ConcurrentDictionary<Type, Delegate> _handlers;
         private NetFrameDatagramCollection _datagramCollection;
 
-        public event Action<string> ConnectedFailed;
+        public event Action ConnectedFailed;
+        public event Action ConnectionSuccessful;
         public event Action Disconnected;
 
         public void Connect(string host, int port, int receiveBufferSize = 1024, int writeBufferSize = 1024)
         {
-            try
-            {
-                _tcpSocket = new TcpClient(host, port);
-                _networkStream = _tcpSocket.GetStream();
-            }
-            catch (Exception e)
-            {
-                ConnectedFailed?.Invoke(e.Message);
-                return;
-            }
+            _tcpSocket = new TcpClient();
 
             _receiveBufferSize = receiveBufferSize;
             _writeBufferSize = writeBufferSize;
@@ -51,8 +43,8 @@ namespace NetFrame.Client
             _handlers = new ConcurrentDictionary<Type, Delegate>();
             _byteConverter = new NetFrameByteConverter();
             _datagramCollection = new NetFrameDatagramCollection();
-            
-            BeginReadBytes();
+
+            _tcpSocket.BeginConnect(host, port, BeginConnectCallback, _tcpSocket);
         }
         
         public void ChangeReceiveBufferSize(int newSize)
@@ -66,15 +58,32 @@ namespace NetFrame.Client
             _writer = new NetFrameWriter(_writeBufferSize);
         }
 
+        private void BeginConnectCallback(IAsyncResult result)
+        {
+            var tcpSocket = (TcpClient)result.AsyncState;
+
+            if (!tcpSocket.Connected)
+            {
+                ConnectedFailed?.Invoke();
+                return;
+            }
+
+            _networkStream = tcpSocket.GetStream();
+            
+            ConnectionSuccessful?.Invoke();
+            
+            BeginReadBytes();
+        }
+
         private void BeginReadBytes()
         {
             _tcpSocket.ReceiveBufferSize = _receiveBufferSize;
             _tcpSocket.SendBufferSize = _receiveBufferSize;
 
-            _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, ReceiveCallback, null);
+            _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
         }
 
-        private void ReceiveCallback(IAsyncResult result)
+        private void BeginReadBytesCallback(IAsyncResult result)
         {
             try
             {
@@ -129,7 +138,7 @@ namespace NetFrame.Client
                 } 
                 while (readBytesCompleteCount < allBytes.Length);
 
-                _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, ReceiveCallback, null);
+                _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
             }
             catch (Exception e)
             {
