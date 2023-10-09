@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using NetFrame.Constants;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using UnityEngine;
 
 namespace NetFrame.Client
 {
@@ -27,12 +26,18 @@ namespace NetFrame.Client
         private ConcurrentDictionary<Type, Delegate> _handlers;
         private NetFrameDatagramCollection _datagramCollection;
 
-        public event Action ConnectedFailed;
+        public event Action<string> ConnectedFailed;
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
 
         public void Connect(string host, int port, int receiveBufferSize = 1024, int writeBufferSize = 1024)
         {
+            if (_tcpSocket != null && _tcpSocket.Connected)
+            {
+                ConnectedFailed?.Invoke("Already connected to the server");
+                return;
+            }
+            
             _tcpSocket = new TcpClient();
 
             _receiveBufferSize = receiveBufferSize;
@@ -70,7 +75,7 @@ namespace NetFrame.Client
 
             if (!tcpSocket.Connected)
             {
-                ConnectedFailed?.Invoke();
+                ConnectedFailed?.Invoke("Can't connect to server");
                 return;
             }
 
@@ -158,6 +163,7 @@ namespace NetFrame.Client
             if (_tcpSocket != null)
             {
                 _tcpSocket.Close();
+                _tcpSocket.Dispose();
                 _tcpSocket = null;
 
                 Disconnected?.Invoke();
@@ -228,7 +234,7 @@ namespace NetFrame.Client
             
             _tcpSocket.Client.Disconnect(false);
             
-            Debug.LogError("Разрыв с сервером");
+            ConnectedFailed?.Invoke("Connection to the server is lost");
         }
     }
 }

@@ -99,8 +99,8 @@ namespace NetFrame.Server
             _clients.Add(clientId, netFrameClientOnServer);
              
             ClientConnection?.Invoke(_clients.Last().Key);
-
-            _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, null);
+            
+            _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, _tcpServer);
         }
 
         public void Send<T>(ref T datagram, int clientId) where T : struct, INetFrameDatagram

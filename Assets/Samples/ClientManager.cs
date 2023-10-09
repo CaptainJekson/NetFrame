@@ -36,9 +36,9 @@ namespace Samples
             Debug.Log("Connected Successful to server");
         }
         
-        private void OnConnectedFailed()
+        private void OnConnectedFailed(string errorMessage)
         {
-            Debug.LogError($"Connected Failed to server");
+            Debug.LogError($"{errorMessage}");
         }
 
         private void Update()
