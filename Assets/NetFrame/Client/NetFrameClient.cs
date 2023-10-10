@@ -84,7 +84,7 @@ namespace NetFrame.Client
         
         private void CheckAvailableBytes()
         {
-            if (_networkStream != null && _networkStream.DataAvailable && !_canRead)
+            if (_networkStream.CanRead && _networkStream.DataAvailable && !_canRead)
             {
                 var availableBytes = _tcpSocket.Available;
 
@@ -119,6 +119,7 @@ namespace NetFrame.Client
                 }
                 
                 var byteReadLength = _networkStream.EndRead(result);
+                _canRead = false;
 
                 if (byteReadLength <= 0)
                 {
@@ -186,7 +187,6 @@ namespace NetFrame.Client
             if (_tcpSocket != null && _tcpSocket.Connected)
             {
                 _tcpSocket.Close();
-                _tcpSocket = null;
 
                 Disconnected?.Invoke();
             }
