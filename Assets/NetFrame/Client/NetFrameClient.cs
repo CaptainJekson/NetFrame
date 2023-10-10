@@ -86,7 +86,7 @@ namespace NetFrame.Client
         
         private void CheckAvailableBytes()
         {
-            if (_networkStream.CanRead && _networkStream.DataAvailable && !_isReadProcess)
+            if (_networkStream != null && _networkStream.CanRead && _networkStream.DataAvailable && !_isReadProcess)
             {
                 var availableBytes = _tcpSocket.Available;
 
@@ -182,7 +182,7 @@ namespace NetFrame.Client
             }
             catch (Exception e)
             {
-                //Console.WriteLine($"Error receive TCP Client {e.Message}");
+                Console.WriteLine($"Error receive TCP Client {e.Message}");
                 //Debug.LogError($"Error receive TCP Client {e.Message}");
                 Disconnect();
             }

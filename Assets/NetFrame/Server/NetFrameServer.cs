@@ -54,6 +54,7 @@ namespace NetFrame.Server
         public void Run()
         {
             CheckDisconnectClients();
+            CheckAvailableBytesForClients();
         }
 
         public void Stop()
@@ -93,9 +94,7 @@ namespace NetFrame.Server
              
             var netFrameClientOnServer = new NetFrameClientOnServer(clientId, client, _handlers, 
                 _receiveBufferSize, _datagramCollection);
-             
-            netFrameClientOnServer.BeginReadBytes();
-             
+
             _clients.Add(clientId, netFrameClientOnServer);
              
             ClientConnection?.Invoke(_clients.Last().Key);
@@ -153,6 +152,14 @@ namespace NetFrame.Server
         private string GetDatagramTypeName<T>(T datagram) where T : struct, INetFrameDatagram
         {
             return typeof(T).Name;
+        }
+        
+        private void CheckAvailableBytesForClients()
+        {
+            foreach (var client in _clients)
+            {
+                client.Value.CheckAvailableBytes();
+            }
         }
         
         private void CheckDisconnectClients()
