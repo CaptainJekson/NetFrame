@@ -10,24 +10,24 @@ namespace Samples
 {
     public class ClientManager : MonoBehaviour
     {
-        public NetFrameClient Client;
+        private NetFrameClient _client;
         
         private DatagramsGenerator _datagramsGenerator;
 
         private void Start()
         {
             _datagramsGenerator = new DatagramsGenerator(Application.dataPath);
-            Client = new NetFrameClient();
+            _client = new NetFrameClient();
             
             _datagramsGenerator.Run();
-            Client.Connect("127.0.0.1", 8080);
+            _client.Connect("127.0.0.1", 8080);
 
-            Client.ConnectionSuccessful += OnConnectionSuccessful;
-            Client.ConnectedFailed += OnConnectedFailed;
-            Client.Disconnected += OnDisconnected;
+            _client.ConnectionSuccessful += OnConnectionSuccessful;
+            _client.ConnectedFailed += OnConnectedFailed;
+            _client.Disconnected += OnDisconnected;
             
-            Client.Subscribe<TestStringIntDatagram>(TestByteDatagramHandler);
-            Client.Subscribe<UsersDatagram>(UsersDatagramHandler);
+            _client.Subscribe<TestStringIntDatagram>(TestByteDatagramHandler);
+            _client.Subscribe<UsersDatagram>(UsersDatagramHandler);
         }
 
         private void OnDisconnected()
@@ -58,16 +58,16 @@ namespace Samples
 
         private void Update()
         {
-            Client.Run();
+            _client.Run();
             
             if (Input.GetKeyDown(KeyCode.D)) //Disconnect
             {
-                Client.Disconnect();
+                _client.Disconnect();
             }
 
             if (Input.GetKeyDown(KeyCode.C)) //Reconnection
             {
-                Client.Connect("127.0.0.1", 8080);
+                _client.Connect("127.0.0.1", 8080);
             }
             
             if (Input.GetKeyDown(KeyCode.S)) //Send
@@ -78,7 +78,7 @@ namespace Samples
                     Value2 = (byte) Random.Range(0,255),
                     Value3 = (byte) Random.Range(0,255),
                 };
-                Client.Send(ref testByteDatagram);
+                _client.Send(ref testByteDatagram);
             }
         }
         
@@ -98,17 +98,17 @@ namespace Samples
 
         private void OnDestroy()
         {
-            Client.ConnectionSuccessful -= OnConnectionSuccessful;
-            Client.ConnectedFailed -= OnConnectedFailed;
-            Client.Disconnected -= OnDisconnected;
+            _client.ConnectionSuccessful -= OnConnectionSuccessful;
+            _client.ConnectedFailed -= OnConnectedFailed;
+            _client.Disconnected -= OnDisconnected;
             
-            Client.Unsubscribe<TestStringIntDatagram>(TestByteDatagramHandler);
-            Client.Unsubscribe<UsersDatagram>(UsersDatagramHandler);
+            _client.Unsubscribe<TestStringIntDatagram>(TestByteDatagramHandler);
+            _client.Unsubscribe<UsersDatagram>(UsersDatagramHandler);
         }
 
         private void OnApplicationQuit()
         {
-            Client.Disconnect();
+            _client.Disconnect();
         }
     }
 }

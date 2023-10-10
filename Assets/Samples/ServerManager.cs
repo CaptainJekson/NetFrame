@@ -9,22 +9,22 @@ namespace Samples
 {
     public class ServerManager : MonoBehaviour
     {
-        public NetFrameServer Server;
+        private NetFrameServer _server;
         
         private DatagramsGenerator _datagramsGenerator;
         
         private void Start()
         {
             _datagramsGenerator = new DatagramsGenerator(Application.dataPath);
-            Server = new NetFrameServer();
+            _server = new NetFrameServer();
             
             _datagramsGenerator.Run();
-            Server.Start(8080, 10);
+            _server.Start(8080, 10);
 
-            Server.ClientConnection += OnClientConnection;
-            Server.ClientDisconnect += OnClientDisconnect;
+            _server.ClientConnection += OnClientConnection;
+            _server.ClientDisconnect += OnClientDisconnect;
             
-            Server.Subscribe<TestByteDatagram>(TestByteDatagramHandler);
+            _server.Subscribe<TestByteDatagram>(TestByteDatagramHandler);
         }
 
         private void OnClientConnection(int id)
@@ -39,7 +39,7 @@ namespace Samples
 
         private void Update()
         {
-            Server.Run();
+            _server.Run();
             
             if (Input.GetKeyDown(KeyCode.S))
             {
@@ -48,7 +48,7 @@ namespace Samples
                     Name = "Vasya",
                     Age = 27,
                 };
-                Server.SendAll(ref datagram);
+                _server.SendAll(ref datagram);
             }
 
             if (Input.GetKeyDown(KeyCode.B))
@@ -93,7 +93,7 @@ namespace Samples
                 {
                     Users = users,
                 };
-                Server.SendAll(ref datagramCollection);
+                _server.SendAll(ref datagramCollection);
             }
         }
         
@@ -104,15 +104,15 @@ namespace Samples
 
         private void OnDestroy()
         {
-            Server.ClientConnection -= OnClientConnection;
-            Server.ClientDisconnect -= OnClientDisconnect;
+            _server.ClientConnection -= OnClientConnection;
+            _server.ClientDisconnect -= OnClientDisconnect;
             
-            Server.Unsubscribe<TestByteDatagram>(TestByteDatagramHandler);
+            _server.Unsubscribe<TestByteDatagram>(TestByteDatagramHandler);
         }
         
         private void OnApplicationQuit()
         {
-            Server.Stop();
+            _server.Stop();
         }
     }
 }
