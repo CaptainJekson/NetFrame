@@ -30,7 +30,7 @@ namespace NetFrame.Client
         private int _receiveBufferSize;
         private int _writeBufferSize;
         
-        private bool _canRead;
+        private bool _isReadProcess;
         private bool _isOversizeReceiveBuffer;
 
         public event Action<ReasonServerConnectionFailed> ConnectedFailed;
@@ -87,7 +87,7 @@ namespace NetFrame.Client
         
         private void CheckAvailableBytes()
         {
-            if (_networkStream.CanRead && _networkStream.DataAvailable && !_canRead)
+            if (_networkStream.CanRead && _networkStream.DataAvailable && !_isReadProcess)
             {
                 var availableBytes = _tcpSocket.Available;
 
@@ -108,7 +108,7 @@ namespace NetFrame.Client
 
                 if (_isOversizeReceiveBuffer)
                 {
-                    Debug.LogError($"Читаем с оверсайз буфером = {_receiveBufferOversize}");
+                    Debug.LogError($"Читаем с оверсайз буфером = {availableBytes}");
                     _networkStream.BeginRead(_receiveBufferOversize, 0, availableBytes, BeginReadBytesCallback, null);
                 }
                 else
@@ -117,7 +117,7 @@ namespace NetFrame.Client
                     _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
                 }
                 
-                _canRead = true;
+                _isReadProcess = true;
             }
         }
 
@@ -131,7 +131,7 @@ namespace NetFrame.Client
                 }
                 
                 var byteReadLength = _networkStream.EndRead(result);
-                _canRead = false;
+                _isReadProcess = false;
 
                 if (byteReadLength <= 0)
                 {
