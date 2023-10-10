@@ -43,7 +43,7 @@ namespace NetFrame.Client
             _datagramCollection = new NetFrameDatagramCollection();
         }
 
-        public void Connect(string host, int port, int receiveBufferSize = 1024, int writeBufferSize = 1024)
+        public void Connect(string host, int port, int receiveBufferSize = 4096, int writeBufferSize = 4096)
         {
             if (_tcpSocket != null && _tcpSocket.Connected)
             {
