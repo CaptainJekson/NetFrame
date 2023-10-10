@@ -75,7 +75,7 @@ namespace Samples
                     }
                 };
 
-                for (var i = 0; i < 10; i++) //todo эмуляция данных больше буффера
+                for (var i = 0; i < 1500; i++) //todo эмуляция данных больше буффера
                 {
                     users.Add(new UserNetworkModel
                     {
