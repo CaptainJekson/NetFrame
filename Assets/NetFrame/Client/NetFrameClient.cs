@@ -113,15 +113,15 @@ namespace NetFrame.Client
 
                 var allBytes = new byte[byteReadLength];
                 //_receiveBuffer.Length = 1024 | allBytes.Length = 93
-                //Debug.LogError($"_receiveBuffer.Length = {_receiveBuffer.Length} | byteReadLength = {byteReadLength}");
+                Debug.LogError($"_receiveBuffer.Length = {_receiveBuffer.Length} | byteReadLength = {byteReadLength}");
 
-                if (_receiveBuffer.Length <= byteReadLength)
-                {
-                    Debug.LogError("Размер буфера меньше чем кол-во входных байтов!!!");
-
-                    return;
-                }
-                Debug.LogError($"_receiveBuffer.Length = {_receiveBuffer.Length} | allBytes = {allBytes.Length} | byteReadLength = {byteReadLength}");
+                // if (_receiveBuffer.Length <= byteReadLength)
+                // {
+                //     Debug.LogError("Размер буфера меньше чем кол-во входных байтов!!!");
+                //
+                //     return;
+                // }
+                //Debug.LogError($"_receiveBuffer.Length = {_receiveBuffer.Length} | allBytes = {allBytes.Length} | byteReadLength = {byteReadLength}");
 
                 Array.Copy(_receiveBuffer, allBytes, byteReadLength);
                 var readBytesCompleteCount = 0;

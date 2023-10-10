@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using NetFrame.Constants;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using UnityEngine;
 
 namespace NetFrame.Server
 {
@@ -128,8 +129,8 @@ namespace NetFrame.Server
             var heaterDatagram = Encoding.UTF8.GetBytes(headerDatagram);
             var dataDatagram = _writer.ToArraySegment();
             var allData = heaterDatagram.Concat(dataDatagram).ToArray();
-
             var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
+            Debug.LogError($"Пытаюсь отправить байт {allPackageSize}");
             var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
             var allPackage = sizeBytes.Concat(allData).ToArray();
 
