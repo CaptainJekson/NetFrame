@@ -28,14 +28,18 @@ namespace NetFrame.Server
         public event Action<int> ClientConnection;
         public event Action<int> ClientDisconnect;
 
+        public NetFrameServer()
+        {
+            _byteConverter = new NetFrameByteConverter();
+            _handlers = new ConcurrentDictionary<Type, Delegate>();
+            _datagramCollection = new NetFrameDatagramCollection();
+        }
+
         public void Start(int port, int maxClient, int receiveBufferSize = 1024, int writeBufferSize = 1024)
         {
             _tcpServer = new TcpListener(IPAddress.Any, port);
             _maxClient = maxClient;
             _clients = new Dictionary<int, NetFrameClientOnServer>();
-            _byteConverter = new NetFrameByteConverter();
-            _handlers = new ConcurrentDictionary<Type, Delegate>();
-            _datagramCollection = new NetFrameDatagramCollection();
             
             _receiveBufferSize = receiveBufferSize;
             _writeBufferSize = writeBufferSize;
