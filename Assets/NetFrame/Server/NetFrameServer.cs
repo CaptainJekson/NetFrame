@@ -35,7 +35,7 @@ namespace NetFrame.Server
             _datagramCollection = new NetFrameDatagramCollection();
         }
 
-        public void Start(int port, int maxClient, int receiveBufferSize = 1024, int writeBufferSize = 1024)
+        public void Start(int port, int maxClient, int receiveBufferSize = 16384, int writeBufferSize = 16384)
         {
             _tcpServer = new TcpListener(IPAddress.Any, port);
             _maxClient = maxClient;

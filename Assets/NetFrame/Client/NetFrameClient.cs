@@ -39,7 +39,7 @@ namespace NetFrame.Client
             _datagramCollection = new NetFrameDatagramCollection();
         }
 
-        public void Connect(string host, int port, int receiveBufferSize = 1024, int writeBufferSize = 1024)
+        public void Connect(string host, int port, int receiveBufferSize = 16384, int writeBufferSize = 16384)
         {
             if (_tcpSocket != null && _tcpSocket.Connected)
             {
@@ -112,6 +112,17 @@ namespace NetFrame.Client
                 }
 
                 var allBytes = new byte[byteReadLength];
+                //_receiveBuffer.Length = 1024 | allBytes.Length = 93
+                //Debug.LogError($"_receiveBuffer.Length = {_receiveBuffer.Length} | byteReadLength = {byteReadLength}");
+
+                if (_receiveBuffer.Length <= byteReadLength)
+                {
+                    Debug.LogError("Размер буфера меньше чем кол-во входных байтов!!!");
+
+                    return;
+                }
+                Debug.LogError($"_receiveBuffer.Length = {_receiveBuffer.Length} | allBytes = {allBytes.Length} | byteReadLength = {byteReadLength}");
+
                 Array.Copy(_receiveBuffer, allBytes, byteReadLength);
                 var readBytesCompleteCount = 0;
 
@@ -160,7 +171,8 @@ namespace NetFrame.Client
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error receive TCP Client {e.Message}");
+                //Console.WriteLine($"Error receive TCP Client {e.Message}");
+                Debug.LogError($"Error receive TCP Client {e.Message}");
                 Disconnect();
             }
         }
