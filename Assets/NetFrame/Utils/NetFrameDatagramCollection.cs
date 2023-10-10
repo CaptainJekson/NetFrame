@@ -14,6 +14,7 @@ namespace NetFrame.Utils
 
 			_datagrams.Add("TestByteDatagram", new TestByteDatagram());
 			_datagrams.Add("TestStringIntDatagram", new TestStringIntDatagram());
+			_datagrams.Add("UsersDatagram", new UsersDatagram());
 		}
 
 		public INetFrameDatagram GetDatagramByKey(string key)

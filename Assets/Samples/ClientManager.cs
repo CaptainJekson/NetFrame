@@ -2,6 +2,7 @@ using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Datagrams;
+using Samples.Datagrams.Collections;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -26,6 +27,7 @@ namespace Samples
             Client.Disconnected += OnDisconnected;
             
             Client.Subscribe<TestStringIntDatagram>(TestByteDatagramHandler);
+            Client.Subscribe<UsersDatagram>(UsersDatagramHandler);
         }
 
         private void OnDisconnected()
@@ -84,6 +86,15 @@ namespace Samples
         {
             Debug.Log($"TestByteDatagram: {datagram.Name} {datagram.Age}");
         }
+        
+        private void UsersDatagramHandler(UsersDatagram datagram)
+        {
+            Debug.Log($"TestByteDatagram users count: {datagram.Users.Count}");
+            foreach (var user in datagram.Users)
+            {
+                Debug.Log($"First Name: {user.FirstName} | Last Name: {user.LastName} Age: {user.Age} Is Leader {user.IsLeader}");
+            }
+        }
 
         private void OnDestroy()
         {
@@ -92,6 +103,7 @@ namespace Samples
             Client.Disconnected -= OnDisconnected;
             
             Client.Unsubscribe<TestStringIntDatagram>(TestByteDatagramHandler);
+            Client.Unsubscribe<UsersDatagram>(UsersDatagramHandler);
         }
 
         private void OnApplicationQuit()

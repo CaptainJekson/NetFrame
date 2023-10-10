@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using NetFrame.Server;
 using NetFrame.Utils;
 using Samples.Datagrams;
+using Samples.Datagrams.Collections;
 using UnityEngine;
 
 namespace Samples
@@ -47,6 +49,37 @@ namespace Samples
                     Age = 27,
                 };
                 Server.SendAll(ref datagram);
+
+                var users = new List<UserNetworkModel>
+                {
+                    new()
+                    {
+                        FirstName = "Nataly",
+                        LastName = "Prohorova",
+                        Age = 24,
+                        IsLeader = false,
+                    },
+                    new()
+                    {
+                        FirstName = "Evgeniy",
+                        LastName = "Skvortsov",
+                        Age = 32,
+                        IsLeader = true,
+                    },
+                    new()
+                    {
+                        FirstName = "Oksana",
+                        LastName = "Soskova",
+                        Age = 27,
+                        IsLeader = false,
+                    }
+                };
+                    
+                var datagramCollection = new UsersDatagram()
+                {
+                    Users = users,
+                };
+                Server.SendAll(ref datagramCollection);
             }
         }
         
