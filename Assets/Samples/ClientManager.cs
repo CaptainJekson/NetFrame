@@ -92,7 +92,7 @@ namespace Samples
             Debug.Log($"TestByteDatagram users count: {datagram.Users.Count}");
             foreach (var user in datagram.Users)
             {
-                Debug.Log($"First Name: {user.FirstName} | Last Name: {user.LastName} Age: {user.Age} Is Leader {user.IsLeader}");
+                Debug.Log($"First Name: {user.FirstName} | Last Name: {user.LastName} | Age: {user.Age} | Is Leader {user.IsLeader}");
             }
         }
 
