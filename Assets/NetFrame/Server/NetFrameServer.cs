@@ -71,17 +71,6 @@ namespace NetFrame.Server
             _tcpServer.Server.Dispose();
         }
 
-        public void ChangeReceiveBufferSize(int newSize)
-        {
-            _receiveBufferSize = newSize;
-        }
-
-        public void ChangeWriteBufferSize(int newSize)
-        {
-            _writeBufferSize = newSize;
-            _writer = new NetFrameWriter(_writeBufferSize);
-        }
-
         private void ConnectedClientCallback(IAsyncResult result)
         {
             var listener = (TcpListener) result.AsyncState;

@@ -14,19 +14,21 @@ namespace NetFrame.Client
 {
     public class NetFrameClient
     {
+        private readonly NetFrameByteConverter _byteConverter;
+        private readonly ConcurrentDictionary<Type, Delegate> _handlers;
+        private readonly NetFrameDatagramCollection _datagramCollection;
+        
         private TcpClient _tcpSocket;
         private NetworkStream _networkStream;
 
         private NetFrameWriter _writer;
         private NetFrameReader _reader;
-        private NetFrameByteConverter _byteConverter;
         private byte[] _receiveBuffer;
 
         private int _receiveBufferSize;
         private int _writeBufferSize;
-
-        private ConcurrentDictionary<Type, Delegate> _handlers;
-        private NetFrameDatagramCollection _datagramCollection;
+        
+        private bool _canRead;
 
         public event Action<ReasonServerConnectionFailed> ConnectedFailed;
         public event Action ConnectionSuccessful;
@@ -62,17 +64,7 @@ namespace NetFrame.Client
         public void Run()
         {
             CheckDisconnectToServer();
-        }
-
-        public void ChangeReceiveBufferSize(int newSize)
-        {
-            _receiveBufferSize = newSize;
-        }
-
-        public void ChangeWriteBufferSize(int newSize)
-        {
-            _writeBufferSize = newSize;
-            _writer = new NetFrameWriter(_writeBufferSize);
+            CheckAvailableBytes();
         }
 
         private void BeginConnectCallback(IAsyncResult result)
@@ -88,15 +80,32 @@ namespace NetFrame.Client
             _networkStream = tcpSocket.GetStream();
             
             ConnectionSuccessful?.Invoke();
-            
-            BeginReadBytes();
+        }
+        
+        private void CheckAvailableBytes()
+        {
+            if (_networkStream != null && _networkStream.DataAvailable && !_canRead)
+            {
+                var availableBytes = _tcpSocket.Available;
+
+                if (availableBytes > _receiveBufferSize) //todo нужно возвращать назад дефолтный размер буфера
+                {
+                    _receiveBufferSize = availableBytes;
+                    _receiveBuffer = new byte[_receiveBufferSize];
+                    _reader = new NetFrameReader(new byte[_receiveBufferSize]);
+                }
+
+                BeginReadBytes();
+                
+                _canRead = true;
+            }
         }
 
-        private void BeginReadBytes()
+        private void BeginReadBytes() //todo перенесен ва Run для динамического расширения буфера для чтения, тоже самое нажо сделать на сервере
         {
             _tcpSocket.ReceiveBufferSize = _receiveBufferSize;
-            _tcpSocket.SendBufferSize = _receiveBufferSize;
-            
+            _tcpSocket.SendBufferSize = _writeBufferSize;
+
             _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
         }
 
@@ -104,32 +113,19 @@ namespace NetFrame.Client
         {
             try
             {
-                var x = _networkStream.Read(_receiveBuffer);
-                
-                Debug.LogError($"x = {x}");
+                if (!_networkStream.CanRead)
+                {
+                    return;
+                }
                 
                 var byteReadLength = _networkStream.EndRead(result);
-                
+
                 if (byteReadLength <= 0)
                 {
                     return;
                 }
 
                 var allBytes = new byte[byteReadLength];
-                //_receiveBuffer.Length = 1024 | allBytes.Length = 93
-                Debug.LogError($"_receiveBuffer.Length = {_receiveBuffer.Length} | byteReadLength = {byteReadLength}");
-
-                if (_receiveBuffer.Length <= byteReadLength)
-                {
-                    Debug.LogError("Размер буфера меньше чем кол-во входных байтов!!!");
-                    
-                    _receiveBufferSize *= 2;
-                    _reader = new NetFrameReader(new byte[_receiveBufferSize]);
-                    _receiveBuffer = new byte[_receiveBufferSize];
-                    _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
-                    
-                    return;
-                }
 
                 Array.Copy(_receiveBuffer, allBytes, byteReadLength);
                 var readBytesCompleteCount = 0;
