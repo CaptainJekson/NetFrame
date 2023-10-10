@@ -43,12 +43,12 @@ namespace Samples
             
             if (Input.GetKeyDown(KeyCode.S)) //Send
             {
-                var datagram = new TestStringIntDatagram
-                {
-                    Name = "Vasya",
-                    Age = 27,
-                };
-                Server.SendAll(ref datagram);
+                // var datagram = new TestStringIntDatagram
+                // {
+                //     Name = "Vasya",
+                //     Age = 27,
+                // };
+                // Server.SendAll(ref datagram);
 
                 var users = new List<UserNetworkModel>
                 {
