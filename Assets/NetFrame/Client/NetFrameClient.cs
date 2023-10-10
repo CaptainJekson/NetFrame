@@ -161,10 +161,9 @@ namespace NetFrame.Client
 
         public void Disconnect()
         {
-            if (_tcpSocket != null)
+            if (_tcpSocket != null && _tcpSocket.Connected)
             {
                 _tcpSocket.Close();
-                _tcpSocket.Dispose();
                 _tcpSocket = null;
 
                 Disconnected?.Invoke();
