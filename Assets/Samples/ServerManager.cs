@@ -41,7 +41,7 @@ namespace Samples
         {
             Server.Run();
             
-            if (Input.GetKeyDown(KeyCode.S)) //Send
+            if (Input.GetKeyDown(KeyCode.S))
             {
                 var datagram = new TestStringIntDatagram
                 {

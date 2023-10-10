@@ -41,9 +41,6 @@ namespace NetFrame.Server
 
         public void BeginReadBytes()
         {
-            _tcpSocket.ReceiveBufferSize = _receiveBufferSize;
-            _tcpSocket.SendBufferSize = _receiveBufferSize;
-
             _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, ReceiveCallback, null);
         }
 

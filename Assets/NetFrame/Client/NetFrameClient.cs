@@ -8,7 +8,6 @@ using NetFrame.Constants;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using UnityEngine;
 
 namespace NetFrame.Client
 {
@@ -91,7 +90,7 @@ namespace NetFrame.Client
             {
                 var availableBytes = _tcpSocket.Available;
 
-                if (availableBytes > _receiveBufferSize) //todo нужно возвращать назад дефолтный размер буфера
+                if (availableBytes > _receiveBufferSize)
                 {
                     _receiveBufferOversize = new byte[availableBytes];
                     _reader = new NetFrameReader(new byte[availableBytes]);
@@ -102,18 +101,13 @@ namespace NetFrame.Client
                     _isOversizeReceiveBuffer = false;
                     _reader = new NetFrameReader(new byte[_receiveBufferSize]);
                 }
-                
-                _tcpSocket.ReceiveBufferSize = _receiveBufferSize;
-                _tcpSocket.SendBufferSize = _writeBufferSize; //todo не думаю что это должно быть тут, т.к это вообще для отправки датаграм
 
                 if (_isOversizeReceiveBuffer)
                 {
-                    Debug.LogError($"Читаем с оверсайз буфером = {availableBytes}");
                     _networkStream.BeginRead(_receiveBufferOversize, 0, availableBytes, BeginReadBytesCallback, null);
                 }
                 else
                 {
-                    Debug.LogError($"Читаем с обычным буфером = {_receiveBufferSize}");
                     _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
                 }
                 
@@ -189,7 +183,7 @@ namespace NetFrame.Client
             catch (Exception e)
             {
                 //Console.WriteLine($"Error receive TCP Client {e.Message}");
-                Debug.LogError($"Error receive TCP Client {e.Message}");
+                //Debug.LogError($"Error receive TCP Client {e.Message}");
                 Disconnect();
             }
         }
