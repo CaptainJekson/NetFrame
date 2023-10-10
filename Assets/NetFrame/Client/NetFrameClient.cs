@@ -31,6 +31,13 @@ namespace NetFrame.Client
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
 
+        public NetFrameClient()
+        {
+            _handlers = new ConcurrentDictionary<Type, Delegate>();
+            _byteConverter = new NetFrameByteConverter();
+            _datagramCollection = new NetFrameDatagramCollection();
+        }
+
         public void Connect(string host, int port, int receiveBufferSize = 1024, int writeBufferSize = 1024)
         {
             if (_tcpSocket != null && _tcpSocket.Connected)
@@ -38,7 +45,7 @@ namespace NetFrame.Client
                 ConnectedFailed?.Invoke(ReasonServerConnectionFailed.AlreadyConnected);
                 return;
             }
-            
+
             _tcpSocket = new TcpClient();
 
             _receiveBufferSize = receiveBufferSize;
@@ -47,9 +54,6 @@ namespace NetFrame.Client
 
             _writer = new NetFrameWriter(_writeBufferSize);
             _reader = new NetFrameReader(new byte[_receiveBufferSize]);
-            _handlers = new ConcurrentDictionary<Type, Delegate>();
-            _byteConverter = new NetFrameByteConverter();
-            _datagramCollection = new NetFrameDatagramCollection();
 
             _tcpSocket.BeginConnect(host, port, BeginConnectCallback, _tcpSocket);
         }
@@ -91,7 +95,7 @@ namespace NetFrame.Client
         {
             _tcpSocket.ReceiveBufferSize = _receiveBufferSize;
             _tcpSocket.SendBufferSize = _receiveBufferSize;
-
+            
             _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
         }
 
@@ -100,6 +104,7 @@ namespace NetFrame.Client
             try
             {
                 var byteReadLength = _networkStream.EndRead(result);
+                
                 if (byteReadLength <= 0)
                 {
                     return;
