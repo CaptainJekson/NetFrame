@@ -74,6 +74,17 @@ namespace Samples
                         IsLeader = false,
                     }
                 };
+
+                for (var i = 0; i < 1000; i++) //todo эмуляция данных больше буффера
+                {
+                    users.Add(new UserNetworkModel
+                    {
+                        FirstName = "Move",
+                        LastName = "User",
+                        Age = 20,
+                        IsLeader = false,
+                    });
+                }
                     
                 var datagramCollection = new UsersDatagram()
                 {
