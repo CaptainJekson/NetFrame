@@ -49,7 +49,10 @@ namespace Samples
                     Age = 27,
                 };
                 Server.SendAll(ref datagram);
+            }
 
+            if (Input.GetKeyDown(KeyCode.B))
+            {
                 var users = new List<UserNetworkModel>
                 {
                     new()
