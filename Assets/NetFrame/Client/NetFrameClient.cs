@@ -39,7 +39,7 @@ namespace NetFrame.Client
             _datagramCollection = new NetFrameDatagramCollection();
         }
 
-        public void Connect(string host, int port, int receiveBufferSize = 16384, int writeBufferSize = 16384)
+        public void Connect(string host, int port, int receiveBufferSize = 1024, int writeBufferSize = 1024)
         {
             if (_tcpSocket != null && _tcpSocket.Connected)
             {
@@ -104,6 +104,10 @@ namespace NetFrame.Client
         {
             try
             {
+                var x = _networkStream.Read(_receiveBuffer);
+                
+                Debug.LogError($"x = {x}");
+                
                 var byteReadLength = _networkStream.EndRead(result);
                 
                 if (byteReadLength <= 0)
@@ -115,13 +119,17 @@ namespace NetFrame.Client
                 //_receiveBuffer.Length = 1024 | allBytes.Length = 93
                 Debug.LogError($"_receiveBuffer.Length = {_receiveBuffer.Length} | byteReadLength = {byteReadLength}");
 
-                // if (_receiveBuffer.Length <= byteReadLength)
-                // {
-                //     Debug.LogError("Размер буфера меньше чем кол-во входных байтов!!!");
-                //
-                //     return;
-                // }
-                //Debug.LogError($"_receiveBuffer.Length = {_receiveBuffer.Length} | allBytes = {allBytes.Length} | byteReadLength = {byteReadLength}");
+                if (_receiveBuffer.Length <= byteReadLength)
+                {
+                    Debug.LogError("Размер буфера меньше чем кол-во входных байтов!!!");
+                    
+                    _receiveBufferSize *= 2;
+                    _reader = new NetFrameReader(new byte[_receiveBufferSize]);
+                    _receiveBuffer = new byte[_receiveBufferSize];
+                    _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
+                    
+                    return;
+                }
 
                 Array.Copy(_receiveBuffer, allBytes, byteReadLength);
                 var readBytesCompleteCount = 0;
