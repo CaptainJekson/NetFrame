@@ -48,7 +48,7 @@ namespace Samples
                     Name = "Vasya",
                     Age = 27,
                 };
-                Server.SendAll(ref datagram);
+                //Server.SendAll(ref datagram);
 
                 var users = new List<UserNetworkModel>
                 {
@@ -90,7 +90,7 @@ namespace Samples
                 {
                     Users = users,
                 };
-                //Server.SendAll(ref datagramCollection);
+                Server.SendAll(ref datagramCollection);
             }
         }
         
