@@ -23,12 +23,15 @@ namespace NetFrame.Client
 
         private NetFrameWriter _writer;
         private NetFrameReader _reader;
+        
         private byte[] _receiveBuffer;
+        private byte[] _receiveBufferOversize;
 
         private int _receiveBufferSize;
         private int _writeBufferSize;
         
         private bool _canRead;
+        private bool _isOversizeReceiveBuffer;
 
         public event Action<ReasonServerConnectionFailed> ConnectedFailed;
         public event Action ConnectionSuccessful;
@@ -90,23 +93,32 @@ namespace NetFrame.Client
 
                 if (availableBytes > _receiveBufferSize) //todo нужно возвращать назад дефолтный размер буфера
                 {
-                    _receiveBufferSize = availableBytes;
-                    _receiveBuffer = new byte[_receiveBufferSize];
+                    _receiveBufferOversize = new byte[availableBytes];
+                    _reader = new NetFrameReader(new byte[availableBytes]);
+                    _isOversizeReceiveBuffer = true;
+                }
+                else if (_isOversizeReceiveBuffer)
+                {
+                    _isOversizeReceiveBuffer = false;
                     _reader = new NetFrameReader(new byte[_receiveBufferSize]);
                 }
+                
+                _tcpSocket.ReceiveBufferSize = _receiveBufferSize;
+                _tcpSocket.SendBufferSize = _writeBufferSize; //todo не думаю что это должно быть тут, т.к это вообще для отправки датаграм
 
-                BeginReadBytes();
+                if (_isOversizeReceiveBuffer)
+                {
+                    Debug.LogError($"Читаем с оверсайз буфером = {_receiveBufferOversize}");
+                    _networkStream.BeginRead(_receiveBufferOversize, 0, availableBytes, BeginReadBytesCallback, null);
+                }
+                else
+                {
+                    Debug.LogError($"Читаем с обычным буфером = {_receiveBufferSize}");
+                    _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
+                }
                 
                 _canRead = true;
             }
-        }
-
-        private void BeginReadBytes() //todo перенесен ва Run для динамического расширения буфера для чтения, тоже самое нажо сделать на сервере
-        {
-            _tcpSocket.ReceiveBufferSize = _receiveBufferSize;
-            _tcpSocket.SendBufferSize = _writeBufferSize;
-
-            _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
         }
 
         private void BeginReadBytesCallback(IAsyncResult result)
@@ -128,7 +140,9 @@ namespace NetFrame.Client
 
                 var allBytes = new byte[byteReadLength];
 
-                Array.Copy(_receiveBuffer, allBytes, byteReadLength);
+                Array.Copy( _isOversizeReceiveBuffer ? _receiveBufferOversize : _receiveBuffer, 
+                    allBytes, byteReadLength);
+                
                 var readBytesCompleteCount = 0;
 
                 do
@@ -171,8 +185,6 @@ namespace NetFrame.Client
                     }
                 } 
                 while (readBytesCompleteCount < allBytes.Length);
-
-                _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
             }
             catch (Exception e)
             {
