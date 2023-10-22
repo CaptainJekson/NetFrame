@@ -1,4 +1,3 @@
-using System.Threading;
 using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
@@ -84,7 +83,6 @@ namespace Samples
         
         private void TestByteDatagramHandler(TestStringIntDatagram datagram)
         {
-            Debug.LogError($"TestByteDatagramHandler thread = {Thread.CurrentThread.ManagedThreadId}");
             Debug.Log($"TestByteDatagram: {datagram.Name} {datagram.Age}");
         }
         
