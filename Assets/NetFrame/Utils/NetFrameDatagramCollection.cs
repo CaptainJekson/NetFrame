@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 
-using Samples.Datagrams;
-
 namespace NetFrame.Utils
 {
 	public class NetFrameDatagramCollection
@@ -11,10 +9,6 @@ namespace NetFrame.Utils
 		public NetFrameDatagramCollection()
 		{
 			_datagrams = new Dictionary<string, INetFrameDatagram>();
-
-			_datagrams.Add("TestByteDatagram", new TestByteDatagram());
-			_datagrams.Add("TestStringIntDatagram", new TestStringIntDatagram());
-			_datagrams.Add("UsersDatagram", new UsersDatagram());
 		}
 
 		public INetFrameDatagram GetDatagramByKey(string key)
