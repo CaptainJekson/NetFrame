@@ -55,6 +55,7 @@ namespace NetFrame.Server
         {
             CheckDisconnectClients();
             CheckAvailableBytesForClients();
+            MainThread.Pulse();
         }
 
         public void Stop()
@@ -97,7 +98,10 @@ namespace NetFrame.Server
 
             _clients.Add(clientId, netFrameClientOnServer);
              
-            ClientConnection?.Invoke(_clients.Last().Key);
+            MainThread.Run(() =>
+            {
+                ClientConnection?.Invoke(_clients.Last().Key);
+            });
             
             _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, _tcpServer);
         }

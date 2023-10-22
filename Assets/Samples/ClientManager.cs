@@ -1,8 +1,8 @@
+using System.Threading;
 using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Datagrams;
-using Samples.Datagrams.Collections;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -84,6 +84,7 @@ namespace Samples
         
         private void TestByteDatagramHandler(TestStringIntDatagram datagram)
         {
+            Debug.LogError($"TestByteDatagramHandler thread = {Thread.CurrentThread.ManagedThreadId}");
             Debug.Log($"TestByteDatagram: {datagram.Name} {datagram.Age}");
         }
         

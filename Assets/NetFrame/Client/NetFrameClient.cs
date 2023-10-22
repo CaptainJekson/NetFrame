@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NetFrame.Constants;
 using NetFrame.Enums;
@@ -67,6 +68,7 @@ namespace NetFrame.Client
         {
             CheckDisconnectToServer();
             CheckAvailableBytes();
+            MainThread.Pulse();
         }
 
         private void BeginConnectCallback(IAsyncResult result)
@@ -75,13 +77,19 @@ namespace NetFrame.Client
 
             if (!tcpSocket.Connected)
             {
-                ConnectedFailed?.Invoke(ReasonServerConnectionFailed.ImpossibleToConnect);
+                MainThread.Run(() =>
+                {
+                    ConnectedFailed?.Invoke(ReasonServerConnectionFailed.ImpossibleToConnect);
+                });
                 return;
             }
 
             _networkStream = tcpSocket.GetStream();
             
-            ConnectionSuccessful?.Invoke();
+            MainThread.Run(() =>
+            {
+                ConnectionSuccessful?.Invoke();
+            });
         }
         
         private void CheckAvailableBytes()
@@ -175,7 +183,10 @@ namespace NetFrame.Client
                     
                     if (_handlers.TryGetValue(targetType, out var handler))
                     {
-                        handler.DynamicInvoke(datagram);
+                        MainThread.Run(() =>
+                        {
+                            handler.DynamicInvoke(datagram);
+                        });
                     }
                 } 
                 while (readBytesCompleteCount < allBytes.Length);
@@ -184,7 +195,8 @@ namespace NetFrame.Client
             {
                 Console.WriteLine($"Error receive TCP Client {e.Message}");
                 //Debug.LogError($"Error receive TCP Client {e.Message}");
-                Disconnect();
+                
+                MainThread.Run(Disconnect);
             }
         }
 

@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 using NetFrame.Constants;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
@@ -136,7 +134,10 @@ namespace NetFrame.Server
                     
                     if (_handlers.TryGetValue(targetType, out var handler))
                     {
-                        handler.DynamicInvoke(datagram, _id);
+                        MainThread.Run(() =>
+                        {
+                            handler.DynamicInvoke(datagram, _id);
+                        });
                     }
                 } 
                 while (readBytesCompleteCount < allBytes.Length);
@@ -144,7 +145,7 @@ namespace NetFrame.Server
             catch (Exception e)
             {
                 Console.WriteLine($"Error receive TCP Client {e.Message}");
-                Disconnect();
+                MainThread.Run(Disconnect);
             }
         }
 
