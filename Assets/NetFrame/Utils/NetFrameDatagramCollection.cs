@@ -17,7 +17,7 @@ namespace NetFrame.Utils
 
 			foreach (var type in implementingTypes)
 			{
-				if (type.IsValueType)
+				if (!type.IsValueType)
 				{
 					continue;
 				}
