@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Text;
 using NetFrame.Constants;
+using NetFrame.ThreadSafeContainers;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
 
@@ -25,7 +26,10 @@ namespace NetFrame.Server
 
         private bool _isReadProcess;
         private bool _isOversizeReceiveBuffer;
-        
+
+        private readonly ThreadSafeContainer<DisconnectForServerSafeContainer> _disconnectForServerSafeContainer;
+        private readonly ThreadSafeContainer<DynamicInvokeForServerSafeContainer> _dynamicInvokeForServerSafeContainer;
+
         public TcpClient TcpSocket => _tcpSocket;
 
         public NetFrameClientOnServer(int id, TcpClient tcpSocket, ConcurrentDictionary<Type, Delegate> handlers, 
@@ -39,6 +43,9 @@ namespace NetFrame.Server
             _reader = new NetFrameReader(new byte[bufferSize]);
             _receiveBufferSize = bufferSize;
             _receiveBuffer = new byte[_receiveBufferSize];
+
+            _disconnectForServerSafeContainer = new ThreadSafeContainer<DisconnectForServerSafeContainer>();
+            _dynamicInvokeForServerSafeContainer = new ThreadSafeContainer<DynamicInvokeForServerSafeContainer>();
         }
 
         public void CheckAvailableBytes()
@@ -69,6 +76,19 @@ namespace NetFrame.Server
                 }
                 
                 _isReadProcess = true;
+            }
+        }
+
+        public void RunHandlerSafeContainer()
+        {
+            foreach (var response in _disconnectForServerSafeContainer)
+            {
+                Disconnect();
+            }
+
+            foreach (var response in _dynamicInvokeForServerSafeContainer)
+            {
+                response.Handler.DynamicInvoke(response.Dataframe, response.Id);
             }
         }
 
@@ -132,9 +152,11 @@ namespace NetFrame.Server
                     
                     if (_handlers.TryGetValue(targetType, out var handler))
                     {
-                        MainThread.Run(() =>
+                        _dynamicInvokeForServerSafeContainer.Add(new DynamicInvokeForServerSafeContainer
                         {
-                            handler.DynamicInvoke(dataframe, _id);
+                            Handler = handler,
+                            Dataframe = dataframe,
+                            Id = _id,
                         });
                     }
                 } 
@@ -143,7 +165,8 @@ namespace NetFrame.Server
             catch (Exception e)
             {
                 Console.WriteLine($"Error receive TCP Client {e.Message}");
-                MainThread.Run(Disconnect);
+                
+                _disconnectForServerSafeContainer.Add(new DisconnectForServerSafeContainer());
             }
         }
 

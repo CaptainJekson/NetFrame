@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using NetFrame.Constants;
+using NetFrame.ThreadSafeContainers;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
 
@@ -24,6 +25,8 @@ namespace NetFrame.Server
         private NetFrameByteConverter _byteConverter;
         private ConcurrentDictionary<Type, Delegate> _handlers;
 
+        private readonly ThreadSafeContainer<ClientConnectionSafeContainer> _clientConnectionSafeContainer;
+
         public event Action<int> ClientConnection;
         public event Action<int> ClientDisconnect;
 
@@ -31,6 +34,8 @@ namespace NetFrame.Server
         {
             _byteConverter = new NetFrameByteConverter();
             _handlers = new ConcurrentDictionary<Type, Delegate>();
+            
+            _clientConnectionSafeContainer = new ThreadSafeContainer<ClientConnectionSafeContainer>();
         }
 
         public void Start(int port, int maxClient, int receiveBufferSize = 4096, int writeBufferSize = 4096)
@@ -52,8 +57,12 @@ namespace NetFrame.Server
         public void Run()
         {
             CheckDisconnectClients();
-            CheckAvailableBytesForClients();
-            MainThread.Pulse();
+            CheckAvailableBytesForClientsAndHandlerSafeContainer();
+
+            foreach (var response in _clientConnectionSafeContainer)
+            {
+                ClientConnection?.Invoke(_clients.Last().Key);
+            }
         }
 
         public void Stop()
@@ -94,12 +103,9 @@ namespace NetFrame.Server
             var netFrameClientOnServer = new NetFrameClientOnServer(clientId, client, _handlers, _receiveBufferSize);
 
             _clients.Add(clientId, netFrameClientOnServer);
-             
-            MainThread.Run(() =>
-            {
-                ClientConnection?.Invoke(_clients.Last().Key);
-            });
             
+            _clientConnectionSafeContainer.Add(new ClientConnectionSafeContainer());
+
             _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, _tcpServer);
         }
 
@@ -155,11 +161,12 @@ namespace NetFrame.Server
             return typeof(T).Name;
         }
         
-        private void CheckAvailableBytesForClients()
+        private void CheckAvailableBytesForClientsAndHandlerSafeContainer()
         {
             foreach (var client in _clients)
             {
                 client.Value.CheckAvailableBytes();
+                client.Value.RunHandlerSafeContainer();
             }
         }
         

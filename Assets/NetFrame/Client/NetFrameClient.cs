@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NetFrame.Constants;
 using NetFrame.Enums;
+using NetFrame.ThreadSafeContainers;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
 
@@ -31,6 +32,11 @@ namespace NetFrame.Client
         private bool _isReadProcess;
         private bool _isOversizeReceiveBuffer;
 
+        private readonly ThreadSafeContainer<ConnectedFailedSafeContainer> _connectedFailedSafeContainer;
+        private readonly ThreadSafeContainer<ConnectionSuccessfulSafeContainer> _connectionSuccessfulSafeContainer;
+        private readonly ThreadSafeContainer<DynamicInvokeForClientSafeContainer> _dynamicInvokeForClientSafeContainer;
+        private readonly ThreadSafeContainer<DisconnectSafeContainer> _disconnectSafeContainer;
+
         public event Action<ReasonServerConnectionFailed> ConnectedFailed;
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
@@ -39,6 +45,11 @@ namespace NetFrame.Client
         {
             _handlers = new ConcurrentDictionary<Type, Delegate>();
             _byteConverter = new NetFrameByteConverter();
+            
+            _connectedFailedSafeContainer = new ThreadSafeContainer<ConnectedFailedSafeContainer>();
+            _connectionSuccessfulSafeContainer = new ThreadSafeContainer<ConnectionSuccessfulSafeContainer>();
+            _dynamicInvokeForClientSafeContainer = new ThreadSafeContainer<DynamicInvokeForClientSafeContainer>();
+            _disconnectSafeContainer = new ThreadSafeContainer<DisconnectSafeContainer>();
         }
 
         public void Connect(string host, int port, int receiveBufferSize = 4096, int writeBufferSize = 4096)
@@ -65,7 +76,26 @@ namespace NetFrame.Client
         {
             CheckDisconnectToServer();
             CheckAvailableBytes();
-            MainThread.Pulse();
+
+            foreach (var response in _connectedFailedSafeContainer)
+            {
+                ConnectedFailed?.Invoke(response.Reason);
+            }
+
+            foreach (var response in _connectionSuccessfulSafeContainer)
+            {
+                ConnectionSuccessful?.Invoke();
+            }
+
+            foreach (var response in _disconnectSafeContainer)
+            {
+                Disconnect();
+            }
+
+            foreach (var response in _dynamicInvokeForClientSafeContainer)
+            {
+                response.Handler.DynamicInvoke(response.Dataframe);
+            }
         }
 
         private void BeginConnectCallback(IAsyncResult result)
@@ -74,19 +104,17 @@ namespace NetFrame.Client
 
             if (!tcpSocket.Connected)
             {
-                MainThread.Run(() =>
+                _connectedFailedSafeContainer.Add(new ConnectedFailedSafeContainer
                 {
-                    ConnectedFailed?.Invoke(ReasonServerConnectionFailed.ImpossibleToConnect);
+                    Reason = ReasonServerConnectionFailed.ImpossibleToConnect,
                 });
+                
                 return;
             }
 
             _networkStream = tcpSocket.GetStream();
             
-            MainThread.Run(() =>
-            {
-                ConnectionSuccessful?.Invoke();
-            });
+            _connectionSuccessfulSafeContainer.Add(new ConnectionSuccessfulSafeContainer());
         }
         
         private void CheckAvailableBytes()
@@ -180,9 +208,10 @@ namespace NetFrame.Client
                     
                     if (_handlers.TryGetValue(targetType, out var handler))
                     {
-                        MainThread.Run(() =>
+                        _dynamicInvokeForClientSafeContainer.Add(new DynamicInvokeForClientSafeContainer
                         {
-                            handler.DynamicInvoke(dataframe);
+                            Handler = handler,
+                            Dataframe = dataframe,
                         });
                     }
                 } 
@@ -193,7 +222,7 @@ namespace NetFrame.Client
                 Console.WriteLine($"Error receive TCP Client {e.Message}");
                 //Debug.LogError($"Error receive TCP Client {e.Message}");
                 
-                MainThread.Run(Disconnect);
+                _disconnectSafeContainer.Add(new DisconnectSafeContainer());
             }
         }
 
