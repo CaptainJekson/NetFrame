@@ -96,7 +96,7 @@ namespace Samples
         
         private void TestByteDataframeHandler(TestByteNetworkDataframe networkDataframe, int id)
         {
-            Debug.Log($"TestByteDataframe: {networkDataframe.Value1} {networkDataframe.Value2} {networkDataframe.Value3}");
+            Debug.Log($"TestByteDataframe: client id = {id} | {networkDataframe.Value1} {networkDataframe.Value2} {networkDataframe.Value3}");
         }
 
         private void OnDestroy()
