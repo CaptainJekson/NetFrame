@@ -168,21 +168,21 @@ namespace NetFrame.Client
                         tempIndex - NetFrameConstants.SizeByteCount - 1);
                     var contentSegment =
                         new ArraySegment<byte>(packageBytes.ToArray(), tempIndex, packageSize - tempIndex);
-                    var headerDatagram = Encoding.UTF8.GetString(headerSegment);
+                    var headerDataframe = Encoding.UTF8.GetString(headerSegment);
 
                     readBytesCompleteCount += packageSize;
 
-                    var datagram = NetFrameDatagramCollection.GetDatagramByKey(headerDatagram);
-                    var targetType = datagram.GetType();
+                    var dataframe = NetFrameDataframeCollection.GetByKey(headerDataframe);
+                    var targetType = dataframe.GetType();
                     
                     _reader.SetBuffer(contentSegment);
-                    datagram.Read(_reader);
+                    dataframe.Read(_reader);
                     
                     if (_handlers.TryGetValue(targetType, out var handler))
                     {
                         MainThread.Run(() =>
                         {
-                            handler.DynamicInvoke(datagram);
+                            handler.DynamicInvoke(dataframe);
                         });
                     }
                 } 
@@ -207,17 +207,17 @@ namespace NetFrame.Client
             }
         }
 
-        public void Send<T>(ref T datagram) where T : struct, INetFrameDatagram
+        public void Send<T>(ref T dataframe) where T : struct, INetworkDataframe
         {
             _writer.Reset();
-            datagram.Write(_writer);
+            dataframe.Write(_writer);
 
             var separator = '\n';
-            var headerDatagram = GetDatagramTypeName(datagram) + separator;
+            var headerDataframe = GetByTypeName(dataframe) + separator;
 
-            var heaterDatagram = Encoding.UTF8.GetBytes(headerDatagram);
-            var dataDatagram = _writer.ToArraySegment();
-            var allData = heaterDatagram.Concat(dataDatagram).ToArray();
+            var heaterDataframe = Encoding.UTF8.GetBytes(headerDataframe);
+            var dataDataframe = _writer.ToArraySegment();
+            var allData = heaterDataframe.Concat(dataDataframe).ToArray();
 
             var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
             var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
@@ -234,17 +234,17 @@ namespace NetFrame.Client
             await networkStream.WriteAsync(data);
         }
 
-        public void Subscribe<T>(Action<T> handler) where T : struct, INetFrameDatagram
+        public void Subscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
         {
             _handlers.AddOrUpdate(typeof(T), handler, (_, currentHandler) => (Action<T>)currentHandler + handler);
         }
 
-        public void Unsubscribe<T>(Action<T> handler) where T : struct, INetFrameDatagram
+        public void Unsubscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
         {
             _handlers.TryRemove(typeof(T), out var currentHandler);
         }
 
-        private string GetDatagramTypeName<T>(T datagram) where T : struct, INetFrameDatagram
+        private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
         {
             return typeof(T).Name;
         }

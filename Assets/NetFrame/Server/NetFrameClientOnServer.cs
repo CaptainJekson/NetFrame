@@ -120,21 +120,21 @@ namespace NetFrame.Server
                         tempIndex - NetFrameConstants.SizeByteCount - 1);
                     var contentSegment =
                         new ArraySegment<byte>(packageBytes.ToArray(), tempIndex, packageSize - tempIndex);
-                    var headerDatagram = Encoding.UTF8.GetString(headerSegment);
+                    var headerDataframe = Encoding.UTF8.GetString(headerSegment);
                     
                     readBytesCompleteCount += packageSize;
 
-                    var datagram = NetFrameDatagramCollection.GetDatagramByKey(headerDatagram);
-                    var targetType = datagram.GetType();
+                    var dataframe = NetFrameDataframeCollection.GetByKey(headerDataframe);
+                    var targetType = dataframe.GetType();
                     
                     _reader.SetBuffer(contentSegment);
-                    datagram.Read(_reader);
+                    dataframe.Read(_reader);
                     
                     if (_handlers.TryGetValue(targetType, out var handler))
                     {
                         MainThread.Run(() =>
                         {
-                            handler.DynamicInvoke(datagram, _id);
+                            handler.DynamicInvoke(dataframe, _id);
                         });
                     }
                 } 

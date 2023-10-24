@@ -103,20 +103,20 @@ namespace NetFrame.Server
             _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, _tcpServer);
         }
 
-        public void Send<T>(ref T datagram, int clientId) where T : struct, INetFrameDatagram
+        public void Send<T>(ref T dataframe, int clientId) where T : struct, INetworkDataframe
         {
             var client = _clients[clientId];
             var clientStream = client.TcpSocket.GetStream();
 
             _writer.Reset();
-            datagram.Write(_writer);
+            dataframe.Write(_writer);
 
             var separator = '\n';
-            var headerDatagram = GetDatagramTypeName(datagram) + separator;
+            var headerDataframe = GetByTypeName(dataframe) + separator;
 
-            var heaterDatagram = Encoding.UTF8.GetBytes(headerDatagram);
-            var dataDatagram = _writer.ToArraySegment();
-            var allData = heaterDatagram.Concat(dataDatagram).ToArray();
+            var heaterDataframe = Encoding.UTF8.GetBytes(headerDataframe);
+            var dataDataframe = _writer.ToArraySegment();
+            var allData = heaterDataframe.Concat(dataDataframe).ToArray();
             var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
             var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
             var allPackage = sizeBytes.Concat(allData).ToArray();
@@ -127,20 +127,20 @@ namespace NetFrame.Server
             });
         }
 
-        public void SendAll<T>(ref T datagram) where T : struct, INetFrameDatagram
+        public void SendAll<T>(ref T dataframe) where T : struct, INetworkDataframe
         {
             foreach (var clientId in _clients.Keys)
             {
-                Send(ref datagram, clientId);
+                Send(ref dataframe, clientId);
             }
         }
 
-        public void Subscribe<T>(Action<T, int> handler) where T : struct, INetFrameDatagram
+        public void Subscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
         {
             _handlers.AddOrUpdate(typeof(T), handler, (_, currentHandler) => (Action<T, int>)currentHandler + handler);
         }
 
-        public void Unsubscribe<T>(Action<T, int> handler) where T : struct, INetFrameDatagram
+        public void Unsubscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
         {
             _handlers.TryRemove(typeof(T), out var currentHandler);
         }
@@ -150,7 +150,7 @@ namespace NetFrame.Server
             await networkStream.WriteAsync(data);
         }
 
-        private string GetDatagramTypeName<T>(T datagram) where T : struct, INetFrameDatagram
+        private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
         {
             return typeof(T).Name;
         }

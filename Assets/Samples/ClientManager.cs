@@ -1,7 +1,7 @@
 using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
-using Samples.Datagrams;
+using Samples.Dataframes;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -13,7 +13,7 @@ namespace Samples
 
         private void Start()
         {
-            NetFrameDatagramCollection.Initialize();
+            NetFrameDataframeCollection.Initialize();
             
             _client = new NetFrameClient();
             
@@ -23,8 +23,8 @@ namespace Samples
             _client.ConnectedFailed += OnConnectedFailed;
             _client.Disconnected += OnDisconnected;
             
-            _client.Subscribe<TestStringIntDatagram>(TestByteDatagramHandler);
-            _client.Subscribe<UsersDatagram>(UsersDatagramHandler);
+            _client.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
+            _client.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
         }
 
         private void OnDisconnected()
@@ -69,25 +69,25 @@ namespace Samples
             
             if (Input.GetKeyDown(KeyCode.S)) //Send
             {
-                var testByteDatagram = new TestByteDatagram
+                var testByteDataframe = new TestByteNetworkDataframe
                 {
                     Value1 = (byte) Random.Range(0,255),
                     Value2 = (byte) Random.Range(0,255),
                     Value3 = (byte) Random.Range(0,255),
                 };
-                _client.Send(ref testByteDatagram);
+                _client.Send(ref testByteDataframe);
             }
         }
         
-        private void TestByteDatagramHandler(TestStringIntDatagram datagram)
+        private void TestByteDataframeHandler(TestStringIntNetworkDataframe networkDataframe)
         {
-            Debug.Log($"TestByteDatagram: {datagram.Name} {datagram.Age}");
+            Debug.Log($"TestByteDataframe: {networkDataframe.Name} {networkDataframe.Age}");
         }
         
-        private void UsersDatagramHandler(UsersDatagram datagram)
+        private void UsersDataframeHandler(UsersNetworkDataframe networkDataframe)
         {
-            Debug.Log($"TestByteDatagram users count: {datagram.Users.Count}");
-            foreach (var user in datagram.Users)
+            Debug.Log($"TestByteDataframe users count: {networkDataframe.Users.Count}");
+            foreach (var user in networkDataframe.Users)
             {
                 Debug.Log($"First Name: {user.FirstName} | Last Name: {user.LastName} | Age: {user.Age} | Is Leader {user.IsLeader}");
             }
@@ -99,8 +99,8 @@ namespace Samples
             _client.ConnectedFailed -= OnConnectedFailed;
             _client.Disconnected -= OnDisconnected;
             
-            _client.Unsubscribe<TestStringIntDatagram>(TestByteDatagramHandler);
-            _client.Unsubscribe<UsersDatagram>(UsersDatagramHandler);
+            _client.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
+            _client.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
         }
 
         private void OnApplicationQuit()

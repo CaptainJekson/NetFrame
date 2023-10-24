@@ -5,15 +5,15 @@ using System.Reflection;
 
 namespace NetFrame.Utils
 {
-	public static class NetFrameDatagramCollection
+	public static class NetFrameDataframeCollection
 	{
-		private static Dictionary<string, INetFrameDatagram> _datagrams = new();
+		private static readonly Dictionary<string, INetworkDataframe> Dataframes = new();
 
 		public static void Initialize()
 		{
 			var assembly = Assembly.GetExecutingAssembly();
 			var implementingTypes = assembly.GetTypes()
-				.Where(t => t.GetInterfaces().Contains(typeof(INetFrameDatagram)));
+				.Where(t => t.GetInterfaces().Contains(typeof(INetworkDataframe)));
 
 			foreach (var type in implementingTypes)
 			{
@@ -22,13 +22,13 @@ namespace NetFrame.Utils
 					continue;
 				}
 				
-				_datagrams.Add(type.Name, (INetFrameDatagram) Activator.CreateInstance(type));
+				Dataframes.Add(type.Name, (INetworkDataframe) Activator.CreateInstance(type));
 			}
 		}
 
-		public static INetFrameDatagram GetDatagramByKey(string key)
+		public static INetworkDataframe GetByKey(string key)
 		{
-			return _datagrams[key];
+			return Dataframes[key];
 		}
 	}
 }

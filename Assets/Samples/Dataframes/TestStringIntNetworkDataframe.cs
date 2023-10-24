@@ -1,9 +1,9 @@
 using NetFrame;
 using NetFrame.WriteAndRead;
 
-namespace Samples.Datagrams
+namespace Samples.Dataframes
 {
-    public struct TestStringIntDatagram : INetFrameDatagram
+    public struct TestStringIntNetworkDataframe : INetworkDataframe
     {
         public string Name;
         public int Age;

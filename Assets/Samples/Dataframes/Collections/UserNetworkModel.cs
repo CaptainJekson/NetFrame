@@ -1,7 +1,7 @@
 using NetFrame;
 using NetFrame.WriteAndRead;
 
-namespace Samples.Datagrams.Collections
+namespace Samples.Dataframes.Collections
 {
     public struct UserNetworkModel : IWriteable, IReadable
     {

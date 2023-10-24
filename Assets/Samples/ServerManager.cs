@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using NetFrame.Server;
 using NetFrame.Utils;
-using Samples.Datagrams;
-using Samples.Datagrams.Collections;
+using Samples.Dataframes;
+using Samples.Dataframes.Collections;
 using UnityEngine;
 
 namespace Samples
@@ -13,7 +13,7 @@ namespace Samples
         
         private void Start()
         {
-            NetFrameDatagramCollection.Initialize();
+            NetFrameDataframeCollection.Initialize();
             _server = new NetFrameServer();
             
             _server.Start(8080, 10);
@@ -21,7 +21,7 @@ namespace Samples
             _server.ClientConnection += OnClientConnection;
             _server.ClientDisconnect += OnClientDisconnect;
             
-            _server.Subscribe<TestByteDatagram>(TestByteDatagramHandler);
+            _server.Subscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
         }
 
         private void OnClientConnection(int id)
@@ -40,12 +40,12 @@ namespace Samples
             
             if (Input.GetKeyDown(KeyCode.S))
             {
-                var datagram = new TestStringIntDatagram
+                var dataframe = new TestStringIntNetworkDataframe
                 {
                     Name = "Vasya",
                     Age = 27,
                 };
-                _server.SendAll(ref datagram);
+                _server.SendAll(ref dataframe);
             }
 
             if (Input.GetKeyDown(KeyCode.B))
@@ -86,17 +86,17 @@ namespace Samples
                     });
                 }
                     
-                var datagramCollection = new UsersDatagram()
+                var dataframeCollection = new UsersNetworkDataframe()
                 {
                     Users = users,
                 };
-                _server.SendAll(ref datagramCollection);
+                _server.SendAll(ref dataframeCollection);
             }
         }
         
-        private void TestByteDatagramHandler(TestByteDatagram datagram, int id)
+        private void TestByteDataframeHandler(TestByteNetworkDataframe networkDataframe, int id)
         {
-            Debug.Log($"TestByteDatagram: {datagram.Value1} {datagram.Value2} {datagram.Value3}");
+            Debug.Log($"TestByteDataframe: {networkDataframe.Value1} {networkDataframe.Value2} {networkDataframe.Value3}");
         }
 
         private void OnDestroy()
@@ -104,7 +104,7 @@ namespace Samples
             _server.ClientConnection -= OnClientConnection;
             _server.ClientDisconnect -= OnClientDisconnect;
             
-            _server.Unsubscribe<TestByteDatagram>(TestByteDatagramHandler);
+            _server.Unsubscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
         }
         
         private void OnApplicationQuit()

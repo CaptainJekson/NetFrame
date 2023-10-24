@@ -1,9 +1,9 @@
 using NetFrame;
 using NetFrame.WriteAndRead;
 
-namespace Samples.Datagrams
+namespace Samples.Dataframes
 {
-    public struct TestByteDatagram : INetFrameDatagram
+    public struct TestByteNetworkDataframe : INetworkDataframe
     {
         public byte Value1;
         public byte Value2;

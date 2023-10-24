@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using NetFrame;
 using NetFrame.WriteAndRead;
-using Samples.Datagrams.Collections;
+using Samples.Dataframes.Collections;
 
-namespace Samples.Datagrams
+namespace Samples.Dataframes
 {
-    public struct UsersDatagram : INetFrameDatagram
+    public struct UsersNetworkDataframe : INetworkDataframe
     {
         public List<UserNetworkModel> Users;
 
