@@ -23,7 +23,6 @@ namespace NetFrame.Server
         private NetFrameWriter _writer;
         private NetFrameByteConverter _byteConverter;
         private ConcurrentDictionary<Type, Delegate> _handlers;
-        private NetFrameDatagramCollection _datagramCollection;
 
         public event Action<int> ClientConnection;
         public event Action<int> ClientDisconnect;
@@ -32,7 +31,6 @@ namespace NetFrame.Server
         {
             _byteConverter = new NetFrameByteConverter();
             _handlers = new ConcurrentDictionary<Type, Delegate>();
-            _datagramCollection = new NetFrameDatagramCollection();
         }
 
         public void Start(int port, int maxClient, int receiveBufferSize = 4096, int writeBufferSize = 4096)
@@ -93,8 +91,7 @@ namespace NetFrame.Server
                 clientId = _clients.Last().Key + 1;
             }
              
-            var netFrameClientOnServer = new NetFrameClientOnServer(clientId, client, _handlers, 
-                _receiveBufferSize, _datagramCollection);
+            var netFrameClientOnServer = new NetFrameClientOnServer(clientId, client, _handlers, _receiveBufferSize);
 
             _clients.Add(clientId, netFrameClientOnServer);
              

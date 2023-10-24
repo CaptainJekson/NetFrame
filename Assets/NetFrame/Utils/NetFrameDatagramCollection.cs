@@ -5,16 +5,11 @@ using System.Reflection;
 
 namespace NetFrame.Utils
 {
-	public class NetFrameDatagramCollection
+	public static class NetFrameDatagramCollection
 	{
-		private readonly Dictionary<string, INetFrameDatagram> _datagrams;
+		private static Dictionary<string, INetFrameDatagram> _datagrams = new();
 
-		public NetFrameDatagramCollection()
-		{
-			_datagrams = new Dictionary<string, INetFrameDatagram>();
-		}
-
-		public void Initialize()
+		public static void Initialize()
 		{
 			var assembly = Assembly.GetExecutingAssembly();
 			var implementingTypes = assembly.GetTypes()
@@ -31,7 +26,7 @@ namespace NetFrame.Utils
 			}
 		}
 
-		public INetFrameDatagram GetDatagramByKey(string key)
+		public static INetFrameDatagram GetDatagramByKey(string key)
 		{
 			return _datagrams[key];
 		}

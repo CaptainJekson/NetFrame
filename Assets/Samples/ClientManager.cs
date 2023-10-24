@@ -10,15 +10,13 @@ namespace Samples
     public class ClientManager : MonoBehaviour
     {
         private NetFrameClient _client;
-        
-        private NetFrameDatagramCollection _netFrameDatagramCollection;
 
         private void Start()
         {
-            _netFrameDatagramCollection = new NetFrameDatagramCollection();
+            NetFrameDatagramCollection.Initialize();
+            
             _client = new NetFrameClient();
             
-            _netFrameDatagramCollection.Initialize();
             _client.Connect("127.0.0.1", 8080);
 
             _client.ConnectionSuccessful += OnConnectionSuccessful;

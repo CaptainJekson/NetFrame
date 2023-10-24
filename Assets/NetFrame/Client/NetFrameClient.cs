@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using NetFrame.Constants;
 using NetFrame.Enums;
@@ -16,7 +15,6 @@ namespace NetFrame.Client
     {
         private readonly NetFrameByteConverter _byteConverter;
         private readonly ConcurrentDictionary<Type, Delegate> _handlers;
-        private readonly NetFrameDatagramCollection _datagramCollection;
         
         private TcpClient _tcpSocket;
         private NetworkStream _networkStream;
@@ -41,7 +39,6 @@ namespace NetFrame.Client
         {
             _handlers = new ConcurrentDictionary<Type, Delegate>();
             _byteConverter = new NetFrameByteConverter();
-            _datagramCollection = new NetFrameDatagramCollection();
         }
 
         public void Connect(string host, int port, int receiveBufferSize = 4096, int writeBufferSize = 4096)
@@ -175,7 +172,7 @@ namespace NetFrame.Client
 
                     readBytesCompleteCount += packageSize;
 
-                    var datagram = _datagramCollection.GetDatagramByKey(headerDatagram);
+                    var datagram = NetFrameDatagramCollection.GetDatagramByKey(headerDatagram);
                     var targetType = datagram.GetType();
                     
                     _reader.SetBuffer(contentSegment);
