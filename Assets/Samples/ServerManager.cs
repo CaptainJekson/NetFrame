@@ -11,14 +11,14 @@ namespace Samples
     {
         private NetFrameServer _server;
         
-        private DatagramsGenerator _datagramsGenerator;
+        private NetFrameDatagramCollection _netFrameDatagramCollection;
         
         private void Start()
         {
-            _datagramsGenerator = new DatagramsGenerator(Application.dataPath);
+            _netFrameDatagramCollection = new NetFrameDatagramCollection();
             _server = new NetFrameServer();
             
-            _datagramsGenerator.Run();
+            _netFrameDatagramCollection.Initialize();
             _server.Start(8080, 10);
 
             _server.ClientConnection += OnClientConnection;
