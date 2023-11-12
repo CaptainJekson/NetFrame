@@ -128,11 +128,15 @@ namespace NetFrame.Client
                     _receiveBufferOversize = new byte[availableBytes];
                     _reader = new NetFrameReader(new byte[availableBytes]);
                     _isOversizeReceiveBuffer = true;
+                    
+                    _isReadProcess = true;
                 }
                 else if (_isOversizeReceiveBuffer)
                 {
                     _isOversizeReceiveBuffer = false;
                     _reader = new NetFrameReader(new byte[_receiveBufferSize]);
+                    
+                    _isReadProcess = true;
                 }
 
                 if (_isOversizeReceiveBuffer)
@@ -143,8 +147,6 @@ namespace NetFrame.Client
                 {
                     _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
                 }
-                
-                _isReadProcess = true;
             }
         }
 
