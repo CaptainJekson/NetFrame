@@ -22,6 +22,7 @@ namespace Samples
             _server.ClientDisconnect += OnClientDisconnect;
             
             _server.Subscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
+            _server.Subscribe<TestNicknameDataframe>(TestNicknameDataframeHandler);
         }
 
         private void OnClientConnection(int id)
@@ -97,6 +98,11 @@ namespace Samples
         private void TestByteDataframeHandler(TestByteNetworkDataframe networkDataframe, int id)
         {
             Debug.Log($"TestByteDataframe: client id = {id} | {networkDataframe.Value1} {networkDataframe.Value2} {networkDataframe.Value3}");
+        }
+        
+        private void TestNicknameDataframeHandler(TestNicknameDataframe networkDataframe, int id)
+        {
+            Debug.Log($"TestNicknameDataframe: client id = {id} | nickname: {networkDataframe.Nickname}");
         }
 
         private void OnDestroy()

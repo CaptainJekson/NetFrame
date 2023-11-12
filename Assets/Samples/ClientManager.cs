@@ -34,6 +34,11 @@ namespace Samples
         
         private void OnConnectionSuccessful()
         {
+            var dataframe = new TestNicknameDataframe
+            {
+                Nickname = "Mega_nagibator",
+            };
+            _client.Send(ref dataframe);
             Debug.Log("Connected Successful to server");
         }
         

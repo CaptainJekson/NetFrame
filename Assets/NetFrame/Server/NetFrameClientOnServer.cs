@@ -11,6 +11,8 @@ namespace NetFrame.Server
 {
     public class NetFrameClientOnServer
     {
+        public bool IsCanRead;
+        
         private readonly int _id;
         private readonly TcpClient _tcpSocket;
         private readonly NetworkStream _networkStream;
@@ -23,8 +25,7 @@ namespace NetFrame.Server
         private readonly int _receiveBufferSize; 
 
         private NetFrameReader _reader;
-
-        private bool _isReadProcess;
+        
         private bool _isOversizeReceiveBuffer;
 
         private readonly ThreadSafeContainer<DisconnectForServerSafeContainer> _disconnectForServerSafeContainer;
@@ -50,7 +51,7 @@ namespace NetFrame.Server
 
         public void CheckAvailableBytes()
         {
-            if (_networkStream != null && _networkStream.CanRead && _networkStream.DataAvailable && !_isReadProcess)
+            if (_networkStream != null && _networkStream.CanRead && _networkStream.DataAvailable && IsCanRead)
             {
                 var availableBytes = _tcpSocket.Available;
 
@@ -60,14 +61,14 @@ namespace NetFrame.Server
                     _reader = new NetFrameReader(new byte[availableBytes]);
                     _isOversizeReceiveBuffer = true;
                     
-                    _isReadProcess = true;
+                    IsCanRead = false;
                 }
                 else if (_isOversizeReceiveBuffer)
                 {
                     _isOversizeReceiveBuffer = false;
                     _reader = new NetFrameReader(new byte[_receiveBufferSize]);
                     
-                    _isReadProcess = true;
+                    IsCanRead = false;
                 }
                 
                 if (_isOversizeReceiveBuffer)
@@ -104,7 +105,7 @@ namespace NetFrame.Server
                 }
                 
                 var byteReadLength = _networkStream.EndRead(result);
-                _isReadProcess = false;
+                IsCanRead = true;
                 
                 if (byteReadLength <= 0)
                 {

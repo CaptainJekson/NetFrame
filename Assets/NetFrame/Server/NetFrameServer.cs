@@ -56,13 +56,14 @@ namespace NetFrame.Server
         
         public void Run()
         {
-            CheckDisconnectClients();
-            CheckAvailableBytesForClientsAndHandlerSafeContainer();
-
             foreach (var response in _clientConnectionSafeContainer)
             {
                 ClientConnection?.Invoke(_clients.Last().Key);
+                _clients.Last().Value.IsCanRead = true;
             }
+            
+            CheckDisconnectClients();
+            CheckAvailableBytesForClientsAndHandlerSafeContainer();
         }
 
         public void Stop()
