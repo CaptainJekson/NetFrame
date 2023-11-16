@@ -9,9 +9,8 @@ namespace NetFrame.Utils
 	{
 		private static readonly Dictionary<string, INetworkDataframe> Dataframes = new();
 
-		public static void Initialize()
+		public static void Initialize(Assembly assembly)
 		{
-			var assembly = Assembly.GetExecutingAssembly();
 			var implementingTypes = assembly.GetTypes()
 				.Where(t => t.GetInterfaces().Contains(typeof(INetworkDataframe)));
 

@@ -1,3 +1,4 @@
+using System.Reflection;
 using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
@@ -13,7 +14,7 @@ namespace Samples
 
         private void Start()
         {
-            NetFrameDataframeCollection.Initialize();
+            NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
             _client = new NetFrameClient();
             

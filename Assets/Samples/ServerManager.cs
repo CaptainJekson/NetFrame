@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using NetFrame.Server;
 using NetFrame.Utils;
 using Samples.Dataframes;
@@ -13,7 +14,7 @@ namespace Samples
         
         private void Start()
         {
-            NetFrameDataframeCollection.Initialize();
+            NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             _server = new NetFrameServer();
             
             _server.Start(8080, 10);
