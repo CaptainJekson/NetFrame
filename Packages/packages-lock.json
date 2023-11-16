@@ -1,5 +1,11 @@
 {
   "dependencies": {
+    "com.jeskvo.net-frame": {
+      "version": "file:com.jeskvo.net-frame",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.2d.animation": {
       "version": "9.0.3",
       "depth": 1,
