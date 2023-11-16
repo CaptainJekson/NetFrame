@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using NetFrame.Constants;
@@ -17,7 +18,7 @@ namespace NetFrame.Server
         private readonly TcpClient _tcpSocket;
         private readonly NetworkStream _networkStream;
         private readonly NetFrameByteConverter _byteConverter;
-        private readonly ConcurrentDictionary<Type, Delegate> _handlers;
+        private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         
         private readonly byte[] _receiveBuffer;
         private byte[] _receiveBufferOversize;
@@ -33,7 +34,7 @@ namespace NetFrame.Server
 
         public TcpClient TcpSocket => _tcpSocket;
 
-        public NetFrameClientOnServer(int id, TcpClient tcpSocket, ConcurrentDictionary<Type, Delegate> handlers, 
+        public NetFrameClientOnServer(int id, TcpClient tcpSocket, ConcurrentDictionary<Type, List<Delegate>> handlers, 
             int bufferSize)
         {
             _id = id;
@@ -91,7 +92,10 @@ namespace NetFrame.Server
 
             foreach (var response in _dynamicInvokeForServerSafeContainer)
             {
-                response.Handler.DynamicInvoke(response.Dataframe, response.Id);
+                foreach (var handler in response.Handlers)
+                {
+                    handler.DynamicInvoke(response.Dataframe, response.Id);
+                }
             }
         }
 
@@ -157,7 +161,7 @@ namespace NetFrame.Server
                     {
                         _dynamicInvokeForServerSafeContainer.Add(new DynamicInvokeForServerSafeContainer
                         {
-                            Handler = handler,
+                            Handlers = handler,
                             Dataframe = dataframe,
                             Id = _id,
                         });

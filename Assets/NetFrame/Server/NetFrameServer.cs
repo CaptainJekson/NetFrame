@@ -23,7 +23,7 @@ namespace NetFrame.Server
 
         private NetFrameWriter _writer;
         private NetFrameByteConverter _byteConverter;
-        private ConcurrentDictionary<Type, Delegate> _handlers;
+        private ConcurrentDictionary<Type, List<Delegate>> _handlers;
 
         private readonly ThreadSafeContainer<ClientConnectionSafeContainer> _clientConnectionSafeContainer;
 
@@ -33,7 +33,7 @@ namespace NetFrame.Server
         public NetFrameServer()
         {
             _byteConverter = new NetFrameByteConverter();
-            _handlers = new ConcurrentDictionary<Type, Delegate>();
+            _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
             
             _clientConnectionSafeContainer = new ThreadSafeContainer<ClientConnectionSafeContainer>();
         }
@@ -144,12 +144,25 @@ namespace NetFrame.Server
 
         public void Subscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
         {
-            _handlers.AddOrUpdate(typeof(T), handler, (_, currentHandler) => (Action<T, int>)currentHandler + handler);
+            _handlers.AddOrUpdate(typeof(T), new List<Delegate> { handler }, (_, currentHandlers) => 
+            {
+                currentHandlers ??= new List<Delegate>();
+                currentHandlers.Add(handler);
+                return currentHandlers;
+            });
         }
 
         public void Unsubscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
         {
-            _handlers.TryRemove(typeof(T), out var currentHandler);
+            if (_handlers.TryGetValue(typeof(T), out var handlers))
+            {
+                handlers.Remove(handler);
+                
+                if (handlers.Count == 0)
+                {
+                    _handlers.TryRemove(typeof(T), out _);
+                }
+            }
         }
 
         private async Task SendAsync(NetworkStream networkStream, ArraySegment<byte> data)

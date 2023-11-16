@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -15,7 +16,7 @@ namespace NetFrame.Client
     public class NetFrameClient
     {
         private readonly NetFrameByteConverter _byteConverter;
-        private readonly ConcurrentDictionary<Type, Delegate> _handlers;
+        private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         
         private TcpClient _tcpSocket;
         private NetworkStream _networkStream;
@@ -43,7 +44,7 @@ namespace NetFrame.Client
 
         public NetFrameClient()
         {
-            _handlers = new ConcurrentDictionary<Type, Delegate>();
+            _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
             _byteConverter = new NetFrameByteConverter();
             
             _connectedFailedSafeContainer = new ThreadSafeContainer<ConnectedFailedSafeContainer>();
@@ -94,7 +95,10 @@ namespace NetFrame.Client
 
             foreach (var response in _dynamicInvokeForClientSafeContainer)
             {
-                response.Handler.DynamicInvoke(response.Dataframe);
+                foreach (var handler in response.Handlers)
+                {
+                    handler.DynamicInvoke(response.Dataframe);
+                }
             }
         }
 
@@ -212,7 +216,7 @@ namespace NetFrame.Client
                     {
                         _dynamicInvokeForClientSafeContainer.Add(new DynamicInvokeForClientSafeContainer
                         {
-                            Handler = handler,
+                            Handlers = handler,
                             Dataframe = dataframe,
                         });
                     }
@@ -267,12 +271,25 @@ namespace NetFrame.Client
 
         public void Subscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
         {
-            _handlers.AddOrUpdate(typeof(T), handler, (_, currentHandler) => (Action<T>)currentHandler + handler);
+            _handlers.AddOrUpdate(typeof(T), new List<Delegate> { handler }, (_, currentHandlers) => 
+            {
+                currentHandlers ??= new List<Delegate>();
+                currentHandlers.Add(handler);
+                return currentHandlers;
+            });
         }
 
         public void Unsubscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
         {
-            _handlers.TryRemove(typeof(T), out var currentHandler);
+            if (_handlers.TryGetValue(typeof(T), out var handlers))
+            {
+                handlers.Remove(handler);
+                
+                if (handlers.Count == 0)
+                {
+                    _handlers.TryRemove(typeof(T), out _);
+                }
+            }
         }
 
         private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
