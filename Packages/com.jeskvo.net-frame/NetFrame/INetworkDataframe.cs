@@ -1,6 +1,6 @@
 namespace NetFrame
 {
-    public interface INetworkDataframe : IWriteable, IReadable//J
+    public interface INetworkDataframe : IWriteable, IReadable
     {
     }
 }
