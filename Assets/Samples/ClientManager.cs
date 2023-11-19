@@ -39,7 +39,7 @@ namespace Samples
             {
                 Nickname = "Mega_nagibator",
             };
-            _client.Send(ref dataframe);
+            //_client.Send(ref dataframe);
             Debug.Log("Connected Successful to server");
         }
         
