@@ -58,7 +58,11 @@ namespace NetFrame.Server
         {
             foreach (var response in _clientConnectionSafeContainer)
             {
-                ClientConnection?.Invoke(_clients.Last().Key);
+                var clientId = response.NewClientId;
+                var newClient = response.NewClient;
+                
+                _clients.Add(clientId, newClient);
+                ClientConnection?.Invoke(clientId);
                 _clients.Last().Value.IsCanRead = true;
             }
             
@@ -103,9 +107,11 @@ namespace NetFrame.Server
              
             var netFrameClientOnServer = new NetFrameClientOnServer(clientId, client, _handlers, _receiveBufferSize);
 
-            _clients.Add(clientId, netFrameClientOnServer);
-            
-            _clientConnectionSafeContainer.Add(new ClientConnectionSafeContainer());
+            _clientConnectionSafeContainer.Add(new ClientConnectionSafeContainer
+            {
+                NewClientId =  clientId,
+                NewClient = netFrameClientOnServer,
+            });
 
             _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, _tcpServer);
         }
