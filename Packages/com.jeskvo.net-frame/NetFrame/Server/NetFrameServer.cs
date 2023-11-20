@@ -19,8 +19,9 @@ namespace NetFrame.Server
         private int _maxClient;
         private int _receiveBufferSize;
         private int _writeBufferSize;
+        private int _clientMaxId;
+        
         private Dictionary<int, NetFrameClientOnServer> _clients;
-
         private NetFrameWriter _writer;
         private NetFrameByteConverter _byteConverter;
         private ConcurrentDictionary<Type, List<Delegate>> _handlers;
@@ -95,15 +96,8 @@ namespace NetFrame.Server
                 return;
             }
              
-            var clientId = 0;
-            if (_clients.Count == 0)
-            {
-                clientId = 0;
-            }
-            else
-            {
-                clientId = _clients.Last().Key + 1;
-            }
+            var clientId = _clientMaxId;
+            _clientMaxId++;
              
             var netFrameClientOnServer = new NetFrameClientOnServer(clientId, client, _handlers, _receiveBufferSize);
 
