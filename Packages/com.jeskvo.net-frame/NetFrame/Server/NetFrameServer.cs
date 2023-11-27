@@ -59,12 +59,14 @@ namespace NetFrame.Server
         {
             foreach (var response in _clientConnectionSafeContainer)
             {
-                var clientId = response.NewClientId;
-                var newClient = response.NewClient;
+                _clientMaxId++;
+             
+                var netFrameClientOnServer = new NetFrameClientOnServer(_clientMaxId, response.TcpClient, _handlers, _receiveBufferSize);
+
+                _clients.Add(_clientMaxId, netFrameClientOnServer);
+                _clients[_clientMaxId].IsCanRead = true;
                 
-                _clients.Add(clientId, newClient);
-                ClientConnection?.Invoke(clientId);
-                _clients[clientId].IsCanRead = true;
+                ClientConnection?.Invoke(_clientMaxId);
             }
             
             CheckDisconnectClients();
@@ -88,23 +90,17 @@ namespace NetFrame.Server
         private void ConnectedClientCallback(IAsyncResult result)
         {
             var listener = (TcpListener) result.AsyncState;
-            var client = listener.EndAcceptTcpClient(result);
+            var tcpClient = listener.EndAcceptTcpClient(result);
             
             if (_clients.Count == _maxClient)
             {
                 Console.WriteLine("Maximum number of clients exceeded");
                 return;
             }
-             
-            var clientId = _clientMaxId;
-            _clientMaxId++;
-             
-            var netFrameClientOnServer = new NetFrameClientOnServer(clientId, client, _handlers, _receiveBufferSize);
 
             _clientConnectionSafeContainer.Add(new ClientConnectionSafeContainer
             {
-                NewClientId =  clientId,
-                NewClient = netFrameClientOnServer,
+                TcpClient =  tcpClient,
             });
 
             _tcpServer.BeginAcceptTcpClient(ConnectedClientCallback, _tcpServer);

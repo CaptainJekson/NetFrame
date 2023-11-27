@@ -5,5 +5,6 @@ namespace NetFrame.ThreadSafeContainers
     public class ConnectedFailedSafeContainer
     {
         public ReasonServerConnectionFailed Reason;
+        public string Parameters;
     }
 }

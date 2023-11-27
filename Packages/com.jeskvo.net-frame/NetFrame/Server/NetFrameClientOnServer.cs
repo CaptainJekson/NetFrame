@@ -151,7 +151,14 @@ namespace NetFrame.Server
                     
                     readBytesCompleteCount += packageSize;
 
-                    var dataframe = NetFrameDataframeCollection.GetByKey(headerDataframe);
+                    if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
+                    {
+                        Console.WriteLine($"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
+                        //Debug.LogError($"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
+                        _disconnectForServerSafeContainer.Add(new DisconnectForServerSafeContainer());
+                        continue;
+                    }
+                    
                     var targetType = dataframe.GetType();
                     
                     _reader.SetBuffer(contentSegment);
@@ -171,7 +178,8 @@ namespace NetFrame.Server
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error receive TCP Client {e.Message}");
+                Console.WriteLine($"[NetFrameClientOnServer.BeginReadBytesCallback] Error receive TCP Client {e.Message}");
+                //Debug.LogError($"[NetFrameClientOnServer.BeginReadBytesCallback] Error receive TCP Client {e.Message}");
                 
                 _disconnectForServerSafeContainer.Add(new DisconnectForServerSafeContainer());
             }

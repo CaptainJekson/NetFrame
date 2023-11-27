@@ -38,7 +38,7 @@ namespace NetFrame.Client
         private readonly ThreadSafeContainer<DynamicInvokeForClientSafeContainer> _dynamicInvokeForClientSafeContainer;
         private readonly ThreadSafeContainer<DisconnectSafeContainer> _disconnectSafeContainer;
 
-        public event Action<ReasonServerConnectionFailed> ConnectedFailed;
+        public event Action<ReasonServerConnectionFailed, string> ConnectedFailed;
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
 
@@ -57,7 +57,7 @@ namespace NetFrame.Client
         {
             if (_tcpSocket != null && _tcpSocket.Connected)
             {
-                ConnectedFailed?.Invoke(ReasonServerConnectionFailed.AlreadyConnected);
+                ConnectedFailed?.Invoke(ReasonServerConnectionFailed.AlreadyConnected, $"host: {host} port: {port}");
                 return;
             }
 
@@ -80,7 +80,7 @@ namespace NetFrame.Client
 
             foreach (var response in _connectedFailedSafeContainer)
             {
-                ConnectedFailed?.Invoke(response.Reason);
+                ConnectedFailed?.Invoke(response.Reason, response.Parameters);
             }
 
             foreach (var response in _connectionSuccessfulSafeContainer)
@@ -111,6 +111,7 @@ namespace NetFrame.Client
                 _connectedFailedSafeContainer.Add(new ConnectedFailedSafeContainer
                 {
                     Reason = ReasonServerConnectionFailed.ImpossibleToConnect,
+                    Parameters = string.Empty,
                 });
                 
                 return;
@@ -206,7 +207,13 @@ namespace NetFrame.Client
 
                     readBytesCompleteCount += packageSize;
 
-                    var dataframe = NetFrameDataframeCollection.GetByKey(headerDataframe);
+                    if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
+                    {
+                        ConnectedFailed?.Invoke(ReasonServerConnectionFailed.NoDataframe, $"headerDataframe: {headerDataframe}");
+                        _disconnectSafeContainer.Add(new DisconnectSafeContainer());
+                        continue;
+                    }
+                    
                     var targetType = dataframe.GetType();
                     
                     _reader.SetBuffer(contentSegment);
@@ -225,8 +232,8 @@ namespace NetFrame.Client
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error receive TCP Client {e.Message}");
-                //Debug.LogError($"Error receive TCP Client {e.Message}");
+                Console.WriteLine($"[NetFrameClient.BeginReadBytesCallback] Error receive TCP Client {e.Message}");
+                //Debug.LogError($"[NetFrameClient.BeginReadBytesCallback] Error receive TCP Client {e.Message}");
                 
                 _disconnectSafeContainer.Add(new DisconnectSafeContainer());
             }
@@ -319,7 +326,7 @@ namespace NetFrame.Client
             
             _tcpSocket.Client.Disconnect(false);
             
-            ConnectedFailed?.Invoke(ReasonServerConnectionFailed.ConnectionLost);
+            ConnectedFailed?.Invoke(ReasonServerConnectionFailed.ConnectionLost, string.Empty);
         }
     }
 }

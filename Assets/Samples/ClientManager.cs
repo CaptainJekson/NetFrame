@@ -27,6 +27,7 @@ namespace Samples
             _client.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
             _client.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
             _client.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
+            _client.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
         }
 
         private void OnDisconnected()
@@ -44,18 +45,21 @@ namespace Samples
             Debug.Log("Connected Successful to server");
         }
         
-        private void OnConnectedFailed(ReasonServerConnectionFailed reason)
+        private void OnConnectedFailed(ReasonServerConnectionFailed reason, string parameters)
         {
             switch (reason)
             {
                 case ReasonServerConnectionFailed.AlreadyConnected:
-                    Debug.LogError("already connected");
+                    Debug.LogError($"already connected {parameters}");
                     break;
                 case ReasonServerConnectionFailed.ImpossibleToConnect:
-                    Debug.LogError("impossible to connect");
+                    Debug.LogError($"impossible to connect {parameters}");
                     break;
                 case ReasonServerConnectionFailed.ConnectionLost:
-                    Debug.LogError("connection lost");
+                    Debug.LogError($"connection lost {parameters}");
+                    break;
+                case ReasonServerConnectionFailed.NoDataframe:
+                    Debug.LogError($"no dataframe {parameters}"); 
                     break;
             }
         }
@@ -102,7 +106,12 @@ namespace Samples
         
         private void TestClientConnectedDataframeHandler(TestClientConnectedDataframe dataframe)
         {
-            Debug.LogError($"Client connected to server ---> {dataframe.ClientId}");
+            Debug.LogError($"Client Connected to server ---> {dataframe.ClientId}");
+        }
+        
+        private void TestClientDisconnectDataframeHandler(TestClientDisconnectDataframe dataframe)
+        {
+            Debug.LogError($"Client Disconnect to server ---> {dataframe.ClientId}");
         }
 
         private void OnDestroy()
@@ -114,6 +123,7 @@ namespace Samples
             _client.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
             _client.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
             _client.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
+            _client.Unsubscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
         }
 
         private void OnApplicationQuit()

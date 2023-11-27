@@ -5,5 +5,6 @@ namespace NetFrame.Enums
         AlreadyConnected = 0,
         ImpossibleToConnect = 1,
         ConnectionLost = 2,
+        NoDataframe = 3,
     }
 }
