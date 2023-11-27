@@ -64,7 +64,7 @@ namespace NetFrame.Server
                 
                 _clients.Add(clientId, newClient);
                 ClientConnection?.Invoke(clientId);
-                _clients.Last().Value.IsCanRead = true;
+                _clients[clientId].IsCanRead = true;
             }
             
             CheckDisconnectClients();

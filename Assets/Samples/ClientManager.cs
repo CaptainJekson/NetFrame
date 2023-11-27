@@ -26,6 +26,7 @@ namespace Samples
             
             _client.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
             _client.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
+            _client.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
         }
 
         private void OnDisconnected()
@@ -98,6 +99,11 @@ namespace Samples
                 Debug.Log($"First Name: {user.FirstName} | Last Name: {user.LastName} | Age: {user.Age} | Is Leader {user.IsLeader}");
             }
         }
+        
+        private void TestClientConnectedDataframeHandler(TestClientConnectedDataframe dataframe)
+        {
+            Debug.LogError($"Client connected to server ---> {dataframe.ClientId}");
+        }
 
         private void OnDestroy()
         {
@@ -107,6 +113,7 @@ namespace Samples
             
             _client.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
             _client.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
+            _client.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
         }
 
         private void OnApplicationQuit()
