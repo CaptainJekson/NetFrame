@@ -10,7 +10,7 @@ using NetFrame.WriteAndRead;
 
 namespace NetFrame.Server
 {
-    public class NetFrameClientOnServer
+    public class NetFrameClientOnServer//
     {
         public bool IsCanRead;
         
