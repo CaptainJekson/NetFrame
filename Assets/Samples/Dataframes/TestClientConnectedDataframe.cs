@@ -3,7 +3,7 @@ using NetFrame.WriteAndRead;
 
 namespace Samples.Dataframes
 {
-    public struct TestClientConnectedDataframe : INetworkDataframe
+    public struct TestClientConnectedDataframe : INetworkDataframe//
     {
         public int ClientId;
     
