@@ -24,10 +24,10 @@ namespace Samples
             _client.ConnectedFailed += OnConnectedFailed;
             _client.Disconnected += OnDisconnected;
             
-            //_client.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
-            //_client.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
-            //_client.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
-            //_client.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+            _client.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
+            _client.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
+            _client.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
+            _client.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
         }
 
         private void OnDisconnected()
@@ -37,10 +37,10 @@ namespace Samples
         
         private void OnConnectionSuccessful()
         {
-            // var dataframe = new TestNicknameDataframe
-            // {
-            //     Nickname = "Mega_nagibator",
-            // };
+            var dataframe = new TestNicknameDataframe
+            {
+                Nickname = "Mega_nagibator",
+            };
             //_client.Send(ref dataframe);
             Debug.Log("Connected Successful to server");
         }
@@ -90,29 +90,29 @@ namespace Samples
             }
         }
         
-        // private void TestByteDataframeHandler(TestStringIntNetworkDataframe networkDataframe)
-        // {
-        //     Debug.Log($"TestByteDataframe: {networkDataframe.Name} {networkDataframe.Age}");
-        // }
-        //
-        // private void UsersDataframeHandler(UsersNetworkDataframe networkDataframe)
-        // {
-        //     Debug.Log($"TestByteDataframe users count: {networkDataframe.Users.Count}");
-        //     foreach (var user in networkDataframe.Users)
-        //     {
-        //         Debug.Log($"First Name: {user.FirstName} | Last Name: {user.LastName} | Age: {user.Age} | Is Leader {user.IsLeader}");
-        //     }
-        // }
-        //
-        // private void TestClientConnectedDataframeHandler(TestClientConnectedDataframe dataframe)
-        // {
-        //     Debug.LogError($"Client Connected to server ---> {dataframe.ClientId}");
-        // }
-        //
-        // private void TestClientDisconnectDataframeHandler(TestClientDisconnectDataframe dataframe)
-        // {
-        //     Debug.LogError($"Client Disconnect to server ---> {dataframe.ClientId}");
-        // }
+        private void TestByteDataframeHandler(TestStringIntNetworkDataframe networkDataframe)
+        {
+            Debug.Log($"TestByteDataframe: {networkDataframe.Name} {networkDataframe.Age}");
+        }
+        
+        private void UsersDataframeHandler(UsersNetworkDataframe networkDataframe)
+        {
+            Debug.Log($"TestByteDataframe users count: {networkDataframe.Users.Count}");
+            foreach (var user in networkDataframe.Users)
+            {
+                Debug.Log($"First Name: {user.FirstName} | Last Name: {user.LastName} | Age: {user.Age} | Is Leader {user.IsLeader}");
+            }
+        }
+        
+        private void TestClientConnectedDataframeHandler(TestClientConnectedDataframe dataframe)
+        {
+            Debug.LogError($"Client Connected to server ---> {dataframe.ClientId}");
+        }
+        
+        private void TestClientDisconnectDataframeHandler(TestClientDisconnectDataframe dataframe)
+        {
+            Debug.LogError($"Client Disconnect to server ---> {dataframe.ClientId}");
+        }
 
         private void OnDestroy()
         {
@@ -120,10 +120,10 @@ namespace Samples
             _client.ConnectedFailed -= OnConnectedFailed;
             _client.Disconnected -= OnDisconnected;
             
-            //_client.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
-            //_client.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
-            //_client.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
-            //_client.Unsubscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+            _client.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
+            _client.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
+            _client.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
+            _client.Unsubscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
         }
 
         private void OnApplicationQuit()
