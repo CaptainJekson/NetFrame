@@ -179,33 +179,18 @@ namespace NetFrame.Server
                 client.Value.RunHandlerSafeContainer();
             }
         }
-        
+
         private void CheckDisconnectClients()
         {
-            foreach (var client in _clients.ToList())
+            foreach (var clientEntry in _clients.ToList())
             {
-                if (!client.Value.TcpSocket.Connected)
+                var client = clientEntry.Value;
+                if (!client.TcpSocket.Connected || client.TcpSocket.Client.Poll(0, SelectMode.SelectRead) && client.TcpSocket.Available == 0)
                 {
-                    ClientDisconnect?.Invoke(client.Key);
-                    _clients.Remove(client.Key);
-                    continue;
+                    ClientDisconnect?.Invoke(clientEntry.Key);
+                    client.Disconnect();
+                    _clients.Remove(clientEntry.Key);
                 }
-                
-                if (!client.Value.TcpSocket.Client.Poll(0, SelectMode.SelectRead))
-                {
-                    continue;
-                }
-
-                var buff = new byte[1];
-
-                if (client.Value.TcpSocket.Client.Receive(buff, SocketFlags.Peek) != 0)
-                {
-                    continue;
-                }
-
-                ClientDisconnect?.Invoke(client.Key);
-                client.Value.Disconnect();
-                _clients.Remove(client.Key);
             }
         }
     }

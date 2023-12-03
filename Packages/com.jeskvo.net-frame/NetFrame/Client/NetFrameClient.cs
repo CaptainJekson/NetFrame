@@ -303,7 +303,7 @@ namespace NetFrame.Client
         {
             return typeof(T).Name;
         }
-        
+
         private void CheckDisconnectToServer()
         {
             if (_tcpSocket == null || !_tcpSocket.Connected)
