@@ -7,4 +7,3 @@ namespace NetFrame
         void Write(NetFrameWriter writer);
     }
 }
-

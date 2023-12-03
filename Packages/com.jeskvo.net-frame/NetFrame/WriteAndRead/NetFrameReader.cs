@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
-using NetFrame.Interfaces;
 
 namespace NetFrame.WriteAndRead
 {
@@ -92,7 +91,7 @@ namespace NetFrame.WriteAndRead
             return result;
         }
 
-        public T Read<T>() where T : struct, IReadableNew
+        public T Read<T>() where T : struct, IReadable
         {
             var value = new T();
             value.Read(this);
@@ -106,7 +105,7 @@ namespace NetFrame.WriteAndRead
         }
     }
     
-    public static class Reader<T> where T : IReadableNew
+    public static class Reader<T> where T : IReadable
     {
         public static Func<NetFrameReader, T> read;
     }

@@ -2,7 +2,6 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using NetFrame.Interfaces;
 
 namespace NetFrame.WriteAndRead
 {
@@ -111,7 +110,7 @@ namespace NetFrame.WriteAndRead
 
         }
 
-        public void Write<T>(T value) where T : IWriteableNew
+        public void Write<T>(T value) where T : IWriteable
         {
             value.Write(this);
         }
@@ -124,7 +123,7 @@ namespace NetFrame.WriteAndRead
         }
     }
     
-    public static class Writer<T> where T : IWriteableNew
+    public static class Writer<T> where T : IWriteable
     {
         public static Action<NetFrameWriter, T> write;
     }

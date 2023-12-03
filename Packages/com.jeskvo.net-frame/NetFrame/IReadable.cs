@@ -7,4 +7,3 @@ namespace NetFrame
         void Read(NetFrameReader reader);
     }
 }
-
