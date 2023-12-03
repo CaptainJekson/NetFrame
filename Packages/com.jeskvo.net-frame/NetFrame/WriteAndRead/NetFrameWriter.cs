@@ -1,23 +1,35 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
+using NetFrame.Interfaces;
 
 namespace NetFrame.WriteAndRead
 {
     public class NetFrameWriter
     {
+        public const ushort MaxStringLength = ushort.MaxValue - 1;
+        public int _bufferSize;
         internal byte[] buffer;
-        public int position;
-    
+        
+        public int Position;
+        
+        public int Capacity => buffer.Length;
+        
+        internal readonly UTF8Encoding encoding = new UTF8Encoding(false, true);
+
+        public NetFrameWriter(int bufferSize = 1500)
+        {
+            _bufferSize = bufferSize;
+            buffer = new byte[_bufferSize];
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reset()
         {
-            position = 0;
+            Position = 0;
         }
-    
-        public NetFrameWriter(int defaultCapacity)
-        {
-            buffer = new byte[defaultCapacity];
-        }
-    
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void EnsureCapacity(int value)
         {
@@ -27,46 +39,93 @@ namespace NetFrame.WriteAndRead
                 Array.Resize(ref buffer, capacity);
             }
         }
-    
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte[] ToArray()
         {
-            byte[] data = new byte[position];
-            Array.ConstrainedCopy(buffer, 0, data, 0, position);
+            byte[] data = new byte[Position];
+            Array.ConstrainedCopy(buffer, 0, data, 0, Position);
             return data;
         }
-        
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ArraySegment<byte> ToArraySegment()
         {
-            return new ArraySegment<byte>(buffer, 0, position);
-        }
-    
-        public void WriteByte(byte value)
-        {
-            EnsureCapacity(position + 1);
-            buffer[position++] = value;
-        }
-    
-        public void WriteBytes(byte[] bytes, int offset, int count)
-        {
-            EnsureCapacity(position + count);
-            Array.ConstrainedCopy(bytes, offset, buffer, position, count);
-            position += count;
-        }
-    
-        public void WriteSpan(ReadOnlySpan<byte> data)
-        {
-            EnsureCapacity(position + data.Length);
-            data.CopyTo(buffer.AsSpan(position, data.Length));
-            position += data.Length;
-        }
-    
-        public void WriteMemory(ReadOnlyMemory<byte> data)
-        {
-            EnsureCapacity(position + data.Length);
-            data.CopyTo(buffer.AsMemory(position, data.Length));
-            position += data.Length;
+            return new ArraySegment<byte>(buffer, 0, Position);
         }
         
-        public void Write<T>(T value) where T : IWriteable => value.Write(this);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator ArraySegment<byte>(NetFrameWriter w)
+        {
+            return w.ToArraySegment();
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal unsafe void WriteBlittable<T>(T value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            
+            EnsureCapacity(Position + size);
+
+            fixed (byte* ptr = &buffer[Position])
+            {
+                *(T*)ptr = value;
+            }
+            Position += size;
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void WriteBlittableNullable<T>(T? value)
+            where T : unmanaged
+        {
+            WriteByte((byte)(value.HasValue ? 0x01 : 0x00));
+
+            if (value.HasValue)
+            {
+                WriteBlittable(value.Value);
+            }
+        }
+
+        public void WriteByte(byte value)
+        {
+            WriteBlittable(value);  
+        } 
+        
+        public void WriteBytes(byte[] array, int offset, int count)
+        {
+            EnsureCapacity(Position + count);
+            Array.ConstrainedCopy(array, offset, this.buffer, Position, count);
+            Position += count;
+        }
+      
+        public unsafe bool WriteBytes(byte* ptr, int offset, int size)
+        {
+            EnsureCapacity(Position + size);
+
+            byte[] tempArray = new byte[size];
+            Marshal.Copy((IntPtr)(ptr + offset), tempArray, 0, size);
+            Array.Copy(tempArray, 0, buffer, Position, size);
+
+            Position += size;
+            return true;
+
+        }
+
+        public void Write<T>(T value) where T : IWriteableNew
+        {
+            value.Write(this);
+        }
+
+        public override string ToString()
+        {
+            var segment = ToArraySegment();
+            var text = BitConverter.ToString(segment.Array, segment.Offset, segment.Count);
+            return $"[{text} @ {Position}/{Capacity}]";
+        }
+    }
+    
+    public static class Writer<T> where T : IWriteableNew
+    {
+        public static Action<NetFrameWriter, T> write;
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using NetFrame;
 using NetFrame.WriteAndRead;
 
@@ -8,6 +9,7 @@ namespace Samples.Dataframes
         public byte Value1;
         public byte Value2;
         public byte Value3;
+        public decimal D;
         
         public void Write(NetFrameWriter writer)
         {
