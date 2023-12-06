@@ -1,6 +1,7 @@
 using System.Reflection;
 using NetFrame.Client;
 using NetFrame.Enums;
+using NetFrame.NewServer;
 using NetFrame.Utils;
 using Samples.Dataframes;
 using UnityEngine;
@@ -10,18 +11,18 @@ namespace Samples
 {
     public class ClientManager : MonoBehaviour
     {
-        private NetFrameClient _client;
+        private Client _client;
 
         private void Start()
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
-            _client = new NetFrameClient();
+            _client = new Client(1000);
             
             _client.Connect("127.0.0.1", 8080);
 
             _client.ConnectionSuccessful += OnConnectionSuccessful;
-            _client.ConnectedFailed += OnConnectedFailed;
+            //_client.ConnectedFailed += OnConnectedFailed;
             _client.Disconnected += OnDisconnected;
             
             _client.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
@@ -66,7 +67,7 @@ namespace Samples
 
         private void Update()
         {
-            _client.Run();
+            _client.Run(100);
             
             if (Input.GetKeyDown(KeyCode.D)) //Disconnect
             {
@@ -117,7 +118,7 @@ namespace Samples
         private void OnDestroy()
         {
             _client.ConnectionSuccessful -= OnConnectionSuccessful;
-            _client.ConnectedFailed -= OnConnectedFailed;
+            //_client.ConnectedFailed -= OnConnectedFailed;
             _client.Disconnected -= OnDisconnected;
             
             _client.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);

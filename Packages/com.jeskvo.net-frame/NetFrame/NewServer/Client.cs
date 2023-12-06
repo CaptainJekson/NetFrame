@@ -1,15 +1,18 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
+using NetFrame.Constants;
+using NetFrame.Utils;
+using NetFrame.WriteAndRead;
 
 namespace NetFrame.NewServer
 {
     public class Client
     {
-        public Action OnConnected;
-        public Action<ArraySegment<byte>> OnData;
-        public Action OnDisconnected;
-        
         public int SendQueueLimit = 10000;
         public int ReceiveQueueLimit = 10000;
         public bool NoDelay = true;
@@ -17,18 +20,29 @@ namespace NetFrame.NewServer
         public int SendTimeout = 5000;
         public int ReceiveTimeout = 0;
         
-        ClientConnectionState state;
+        private NetFrameWriter _writer;
+        private NetFrameReader _reader;
+        private ClientConnectionState _state;
+        private readonly NetFrameByteConverter _byteConverter;
+        private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         
-        public bool Connected => state != null && state.Connected;
-        public bool Connecting => state != null && state.Connecting;
+        public bool Connected => _state != null && _state.Connected;
+        public bool Connecting => _state != null && _state.Connecting;
         
-        public int ReceivePipeCount => state != null ? state.receivePipe.TotalCount : 0;
+        public int ReceivePipeCount => _state != null ? _state.receivePipe.TotalCount : 0;
+
+        public event Action ConnectionSuccessful;
+        public event Action Disconnected;
         
         public Client(int MaxMessageSize)
         {
             this.MaxMessageSize = MaxMessageSize;
+            _writer = new NetFrameWriter(); //todo что с размером ??? он будет увеличиваться???
+            _byteConverter = new NetFrameByteConverter();
+            _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
-        static void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int MaxMessageSize, bool NoDelay, int SendTimeout, int ReceiveTimeout, int ReceiveQueueLimit)
+        
+        private static void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int MaxMessageSize, bool NoDelay, int SendTimeout, int ReceiveTimeout, int ReceiveQueueLimit)
         {
             Thread sendThread = null;
             try
@@ -82,25 +96,49 @@ namespace NetFrame.NewServer
                 return;
             }
             
-            state = new ClientConnectionState(MaxMessageSize);
+            _state = new ClientConnectionState(MaxMessageSize);
             
-            state.Connecting = true;
+            _state.Connecting = true;
             
-            state.tcpClient.Client = null;
+            _state.tcpClient.Client = null;
             
-            state.receiveThread = new Thread(() => {
-                ReceiveThreadFunction(state, ip, port, MaxMessageSize, NoDelay, SendTimeout, ReceiveTimeout, ReceiveQueueLimit);
+            _state.receiveThread = new Thread(() => {
+                ReceiveThreadFunction(_state, ip, port, MaxMessageSize, NoDelay, SendTimeout, ReceiveTimeout, ReceiveQueueLimit);
             });
-            state.receiveThread.IsBackground = true;
-            state.receiveThread.Start();
+            _state.receiveThread.IsBackground = true;
+            _state.receiveThread.Start();
         }
 
         public void Disconnect()
         {
             if (Connecting || Connected)
             {
-                state.Dispose();
+                _state.Dispose();
             }
+        }
+        
+        public void Send<T>(ref T dataframe) where T : struct, INetworkDataframe
+        {
+            _writer.Reset();
+            dataframe.Write(_writer);
+
+            var separator = '\n';
+            var headerDataframe = GetByTypeName(dataframe) + separator;
+
+            var heaterDataframe = Encoding.UTF8.GetBytes(headerDataframe);
+            var dataDataframe = _writer.ToArraySegment();
+            var allData = heaterDataframe.Concat(dataDataframe).ToArray();
+
+            var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
+            var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
+            var allPackage = sizeBytes.Concat(allData).ToArray();
+
+            Send(allPackage);
+        }
+        
+        private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
+        {
+            return typeof(T).Name;
         }
         
         public bool Send(ArraySegment<byte> message)
@@ -110,10 +148,10 @@ namespace NetFrame.NewServer
                 if (message.Count <= MaxMessageSize)
                 {
                     // check send pipe limit
-                    if (state.sendPipe.Count < SendQueueLimit)
+                    if (_state.sendPipe.Count < SendQueueLimit)
                     {
-                        state.sendPipe.Enqueue(message);
-                        state.sendPending.Set();
+                        _state.sendPipe.Enqueue(message);
+                        _state.sendPending.Set();
                         return true;
                     }
                     else
@@ -123,7 +161,7 @@ namespace NetFrame.NewServer
                         //Log.Warning($"[Telepathy] Client.Send: sendPipe reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
 
                         // just close it. send thread will take care of the rest.
-                        state.tcpClient.Close();
+                        _state.tcpClient.Close();
                         return false;
                     }
                 }
@@ -136,9 +174,9 @@ namespace NetFrame.NewServer
             return false;
         }
 
-        public int Tick(int processLimit, Func<bool> checkEnabled = null)
+        public int Run(int processLimit, Func<bool> checkEnabled = null)
         {
-            if (state == null)
+            if (_state == null)
             {
                 return 0;
             }
@@ -150,22 +188,22 @@ namespace NetFrame.NewServer
                     break;
                 }
 
-                if (state.receivePipe.TryPeek(out int _, out EventType eventType, out ArraySegment<byte> message))
+                if (_state.receivePipe.TryPeek(out int _, out EventType eventType, out ArraySegment<byte> message))
                 {
                     switch (eventType)
                     {
                         case EventType.Connected:
-                            OnConnected?.Invoke();
+                            ConnectionSuccessful?.Invoke();
                             break;
                         case EventType.Data:
-                            OnData?.Invoke(message);
+                            BeginReadDataframe(message);
                             break;
                         case EventType.Disconnected:
-                            OnDisconnected?.Invoke();
+                            Disconnected?.Invoke();
                             break;
                     }
                     
-                    state.receivePipe.TryDequeue();
+                    _state.receivePipe.TryDequeue();
                 }
                 else
                 {
@@ -173,7 +211,86 @@ namespace NetFrame.NewServer
                 }
             }
             
-            return state.receivePipe.TotalCount;
+            return _state.receivePipe.TotalCount;
+        }
+        
+        private void BeginReadDataframe(ArraySegment<byte> receiveBytes) //TODO метод который конвертит датафрейм
+        {
+            var allBytes = receiveBytes.Array;
+
+            if (allBytes == null)
+            {
+                return;
+            }
+            
+            var packageSizeSegment = new ArraySegment<byte>(allBytes, 0, NetFrameConstants.SizeByteCount);
+            var packageSize = _byteConverter.GetUIntFromByteArray(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
+            var packageBytes = new ArraySegment<byte>(allBytes, 0, packageSize);
+            
+            var tempIndex = 0;
+            for (var index = NetFrameConstants.SizeByteCount; index < packageSize; index++)
+            {
+                var b = packageBytes[index];
+
+                if (b == '\n')
+                {
+                    tempIndex = index + 1;
+                    break;
+                }
+            }
+            
+            var headerSegment = new ArraySegment<byte>(packageBytes.ToArray(),
+                NetFrameConstants.SizeByteCount,
+                tempIndex - NetFrameConstants.SizeByteCount - 1);
+            var contentSegment =
+                new ArraySegment<byte>(packageBytes.ToArray(), tempIndex, packageSize - tempIndex);
+            var headerDataframe = Encoding.UTF8.GetString(headerSegment);
+            
+            if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
+            {
+                Console.WriteLine($"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
+                //Debug.LogError($"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
+                //TODO тут надо принудительно отключить такого клиента ---------->
+                return;
+            }
+            
+            var targetType = dataframe.GetType();
+
+            _reader = new NetFrameReader(new byte[packageSize]); //TODO точно packageSize ???? 
+            _reader.SetBuffer(contentSegment);
+            
+            dataframe.Read(_reader);
+
+            if (_handlers.TryGetValue(targetType, out var handlers))
+            {
+                foreach (var handler in handlers)
+                {
+                    handler.DynamicInvoke(dataframe);
+                }
+            }
+        }
+        
+        public void Subscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
+        {
+            _handlers.AddOrUpdate(typeof(T), new List<Delegate> { handler }, (_, currentHandlers) => 
+            {
+                currentHandlers ??= new List<Delegate>();
+                currentHandlers.Add(handler);
+                return currentHandlers;
+            });
+        }
+
+        public void Unsubscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
+        {
+            if (_handlers.TryGetValue(typeof(T), out var handlers))
+            {
+                handlers.Remove(handler);
+                
+                if (handlers.Count == 0)
+                {
+                    _handlers.TryRemove(typeof(T), out _);
+                }
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -14,37 +15,46 @@ namespace NetFrame.NewServer
     //todo теперь надо сделать отправку сообщений
     public class Server
     {
-        private readonly NetFrameByteConverter _byteConverter = new NetFrameByteConverter();
-        
         public int SendTimeout = 5000;
+        public int SendQueueLimit = 10000;
+        public int ReceiveQueueLimit = 10000;
 
         public int ReceiveTimeout = 0;
         public bool NoDelay = true;
         public readonly int MaxMessageSize;
 
+        private TcpListener _tcpListener;
+        private Thread _listenerThread;
+        private MagnificentReceivePipe _receivePipe;
+        
+        private readonly ConcurrentDictionary<int, ConnectionState> _clients;
+        private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
+        private readonly NetFrameByteConverter _byteConverter;
+        private NetFrameReader _reader;
+        private NetFrameWriter _writer;
+        
+        public int ReceivePipeTotalCount => _receivePipe.TotalCount;
+        
+        private int _clientIdCounter;
+        
+        private bool Active => _listenerThread != null && _listenerThread.IsAlive;
+        
         public event Action<int> ClientConnection;
         public event Action<int> ClientDisconnect;
         
-        public TcpListener listener;
-        Thread listenerThread;
-        
-        public int SendQueueLimit = 10000;
-        public int ReceiveQueueLimit = 10000;
-
-        protected MagnificentReceivePipe receivePipe;
-        
-        public int ReceivePipeTotalCount => receivePipe.TotalCount;
-        
-        readonly ConcurrentDictionary<int, ConnectionState> _clients = new ConcurrentDictionary<int, ConnectionState>();
-        private ConcurrentDictionary<Type, List<Delegate>> _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
-        
-        int counter;
-        
-        private bool Active => listenerThread != null && listenerThread.IsAlive;
-        
-        public int NextConnectionId()
+        public Server(int maxMessageSize)
         {
-            int id = Interlocked.Increment(ref counter);
+            MaxMessageSize = maxMessageSize;
+
+            _clients = new ConcurrentDictionary<int, ConnectionState>();
+            _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
+            _byteConverter = new NetFrameByteConverter();
+            _writer = new NetFrameWriter(); //todo что с размером ??? он будет увеличиваться???
+        }
+
+        private int NextConnectionId()
+        {
+            int id = Interlocked.Increment(ref _clientIdCounter);
             
             if (id == int.MaxValue)
             {
@@ -53,29 +63,20 @@ namespace NetFrame.NewServer
 
             return id;
         }
-        
-        
-        public Server(int maxMessageSize)
-        {
-            MaxMessageSize = maxMessageSize;
 
-            _clients = new ConcurrentDictionary<int, ConnectionState>();
-            _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
-        }
-        
         private void Listen(int port)
         {
             try
             {
-                listener = TcpListener.Create(port);
-                listener.Server.NoDelay = NoDelay;
-                listener.Start();
+                _tcpListener = TcpListener.Create(port);
+                _tcpListener.Server.NoDelay = NoDelay;
+                _tcpListener.Start();
                 //Log.Info($"[Telepathy] Starting server on port {port}"); //TODO !!!!
 
                 // keep accepting new clients
                 while (true)
                 {
-                    TcpClient client = listener.AcceptTcpClient();
+                    TcpClient client = _tcpListener.AcceptTcpClient();
                     
                     client.NoDelay = NoDelay;
                     client.SendTimeout = SendTimeout;
@@ -108,7 +109,7 @@ namespace NetFrame.NewServer
                     {
                         try
                         {
-                            ThreadFunctions.ReceiveLoop(connectionId, client, MaxMessageSize, receivePipe, ReceiveQueueLimit);
+                            ThreadFunctions.ReceiveLoop(connectionId, client, MaxMessageSize, _receivePipe, ReceiveQueueLimit);
                             sendThread.Interrupt();
                         }
                         catch (Exception exception)
@@ -138,14 +139,14 @@ namespace NetFrame.NewServer
         {
             if (Active) return false;
             
-            receivePipe = new MagnificentReceivePipe(MaxMessageSize);
+            _receivePipe = new MagnificentReceivePipe(MaxMessageSize);
             
             //Log.Info($"[Telepathy] Starting server on port {port}"); //TODO !!!!!
 
-            listenerThread = new Thread(() => { Listen(port); });
-            listenerThread.IsBackground = true;
-            listenerThread.Priority = ThreadPriority.BelowNormal;
-            listenerThread.Start();
+            _listenerThread = new Thread(() => { Listen(port); });
+            _listenerThread.IsBackground = true;
+            _listenerThread.Priority = ThreadPriority.BelowNormal;
+            _listenerThread.Start();
             return true;
         }
 
@@ -155,10 +156,10 @@ namespace NetFrame.NewServer
 
             //Log.Info("[Telepathy] Server: stopping...");  //TODO !!!!!
             
-            listener?.Stop();
+            _tcpListener?.Stop();
             
-            listenerThread?.Interrupt();
-            listenerThread = null;
+            _listenerThread?.Interrupt();
+            _listenerThread = null;
             
             foreach (KeyValuePair<int, ConnectionState> keyValuePair in _clients)
             {
@@ -177,10 +178,41 @@ namespace NetFrame.NewServer
             
             _clients.Clear();
             
-            counter = 0;
+            _clientIdCounter = 0;
         }
         
-        public bool Send(int connectionId, ArraySegment<byte> message)
+        public void Send<T>(ref T dataframe, int clientId) where T : struct, INetworkDataframe
+        {
+            _writer.Reset();
+            dataframe.Write(_writer);
+
+            var separator = '\n';
+            var headerDataframe = GetByTypeName(dataframe) + separator;
+
+            var heaterDataframe = Encoding.UTF8.GetBytes(headerDataframe);
+            var dataDataframe = _writer.ToArraySegment();
+            var allData = heaterDataframe.Concat(dataDataframe).ToArray();
+            var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
+            var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
+            var allPackage = sizeBytes.Concat(allData).ToArray();
+
+            Send(clientId, allPackage);
+        }
+        
+        public void SendAll<T>(ref T dataframe) where T : struct, INetworkDataframe
+        {
+            foreach (var clientId in _clients.Keys)
+            {
+                Send(ref dataframe, clientId);
+            }
+        }
+        
+        private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
+        {
+            return typeof(T).Name;
+        }
+        
+        public bool Send(int connectionId, ArraySegment<byte> message) //TODO
         {
             if (message.Count <= MaxMessageSize)
             {
@@ -206,7 +238,7 @@ namespace NetFrame.NewServer
             return false;
         }
 
-        // ip-адрес клиента иногда требуется серверу, например, для банов
+        // TODO ip-адрес клиента иногда требуется серверу, например, для банов
         public string GetClientAddress(int connectionId)
         {
             if (_clients.TryGetValue(connectionId, out ConnectionState connection))
@@ -232,7 +264,7 @@ namespace NetFrame.NewServer
         
         public int Run(int processLimit, Func<bool> checkEnabled = null)
         {
-            if (receivePipe == null)
+            if (_receivePipe == null)
                 return 0;
 
             for (int i = 0; i < processLimit; ++i)
@@ -240,7 +272,7 @@ namespace NetFrame.NewServer
                 if (checkEnabled != null && !checkEnabled())
                     break;
                 
-                if (receivePipe.TryPeek(out int connectionId, out EventType eventType, out ArraySegment<byte> message))
+                if (_receivePipe.TryPeek(out int connectionId, out EventType eventType, out ArraySegment<byte> message))
                 {
                     switch (eventType)
                     {
@@ -256,7 +288,7 @@ namespace NetFrame.NewServer
                             break;
                     }
                     
-                    receivePipe.TryDequeue();
+                    _receivePipe.TryDequeue();
                 }
                 else
                 {
@@ -264,7 +296,7 @@ namespace NetFrame.NewServer
                 }
             }
             
-            return receivePipe.TotalCount;
+            return _receivePipe.TotalCount;
         }
 
         private void BeginReadDataframe(int clientId, ArraySegment<byte> receiveBytes) //TODO метод который конвертит датафрейм
@@ -277,7 +309,7 @@ namespace NetFrame.NewServer
             }
             
             var packageSizeSegment = new ArraySegment<byte>(allBytes, 0, NetFrameConstants.SizeByteCount);
-            var packageSize = _byteConverter.GetUIntFromByteArray(packageSizeSegment.ToArray());
+            var packageSize = _byteConverter.GetUIntFromByteArray(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
             var packageBytes = new ArraySegment<byte>(allBytes, 0, packageSize);
             
             var tempIndex = 0;
@@ -309,9 +341,9 @@ namespace NetFrame.NewServer
             
             var targetType = dataframe.GetType();
 
-            var availableBytes = 1024;
-            var _reader = new NetFrameReader(new byte[availableBytes]); //TODO проверить расширение бефера
+            _reader = new NetFrameReader(new byte[packageSize]); //TODO точно packageSize ???? 
             _reader.SetBuffer(contentSegment);
+            
             dataframe.Read(_reader);
 
             if (_handlers.TryGetValue(targetType, out var handlers))
@@ -323,7 +355,6 @@ namespace NetFrame.NewServer
             }
         }
         
-        //TODO из NetFrameServer
         public void Subscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
         {
             _handlers.AddOrUpdate(typeof(T), new List<Delegate> { handler }, (_, currentHandlers) => 
@@ -333,8 +364,7 @@ namespace NetFrame.NewServer
                 return currentHandlers;
             });
         }
-
-        //TODO из NetFrameServer
+        
         public void Unsubscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
         {
             if (_handlers.TryGetValue(typeof(T), out var handlers))

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
+using NetFrame.NewServer;
 using NetFrame.Server;
 using NetFrame.Utils;
 using Samples.Dataframes;
@@ -10,12 +11,12 @@ namespace Samples
 {
     public class ServerManager : MonoBehaviour
     {
-        private NetFrameServer _server;
+        private Server _server;
         
         private void Start()
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
-            _server = new NetFrameServer();
+            _server = new Server(1000);
             
             _server.Start(8080, 10);
 
@@ -38,7 +39,7 @@ namespace Samples
 
         private void Update()
         {
-            _server.Run();
+            _server.Run(100);
             
             if (Input.GetKeyDown(KeyCode.S))
             {
