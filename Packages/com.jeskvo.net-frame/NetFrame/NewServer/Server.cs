@@ -9,7 +9,6 @@ using System.Threading;
 using NetFrame.Constants;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.NewServer
 {
