@@ -142,7 +142,7 @@ namespace NetFrame.NewServer
             return typeof(T).Name;
         }
 
-        private void Send(ArraySegment<byte> message)
+        private bool Send(ArraySegment<byte> message)
         {
             if (Connected)
             {
@@ -152,19 +152,22 @@ namespace NetFrame.NewServer
                     {
                         _state.sendPipe.Enqueue(message);
                         _state.sendPending.Set();
+                        return true;
                     }
                     else
                     {
                         LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
-                        
                         _state.tcpClient.Close();
+                        return false;
                     }
                 }
         
                 LogCall?.Invoke(LogType.Error, "[NetFrameClient.Send] Client.Send: message too big: " + message.Count + ". Limit: " + MaxMessageSize);
+                return false;
             }
             
             LogCall?.Invoke(LogType.Warning, "[Telepathy] Client.Send: not connected!");
+            return false;
         }
 
         public int Run(int processLimit, Func<bool> checkEnabled = null)
