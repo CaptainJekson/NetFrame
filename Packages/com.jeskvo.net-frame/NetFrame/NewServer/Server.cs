@@ -9,10 +9,11 @@ using System.Threading;
 using NetFrame.Constants;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.NewServer
 {
-    //todo теперь надо сделать отправку сообщений
+    //todo привести код в порядок и понять как все работает
     public class Server
     {
         public int SendTimeout = 5000;
@@ -41,6 +42,7 @@ namespace NetFrame.NewServer
         
         public event Action<int> ClientConnection;
         public event Action<int> ClientDisconnect;
+        public event Action<LogType, string> LogCall;
         
         public Server(int maxMessageSize)
         {
@@ -71,9 +73,9 @@ namespace NetFrame.NewServer
                 _tcpListener = TcpListener.Create(port);
                 _tcpListener.Server.NoDelay = NoDelay;
                 _tcpListener.Start();
-                //Log.Info($"[Telepathy] Starting server on port {port}"); //TODO !!!!
-
-                // keep accepting new clients
+                
+                LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Listen] Starting server on port {port}");
+                
                 while (true)
                 {
                     TcpClient client = _tcpListener.AcceptTcpClient();
@@ -99,7 +101,7 @@ namespace NetFrame.NewServer
                         }
                         catch (Exception exception)
                         {
-                            //Log.Error("[Telepathy] Server send thread exception: " + exception); //TODO!!!!!
+                            LogCall?.Invoke(LogType.Error, "[NetFrameServer.Listen] Server send thread exception: " + exception);
                         }
                     });
                     sendThread.IsBackground = true;
@@ -114,7 +116,7 @@ namespace NetFrame.NewServer
                         }
                         catch (Exception exception)
                         {
-                            //Log.Error("[Telepathy] Server client thread exception: " + exception); //TODO !!!!!
+                            LogCall?.Invoke(LogType.Error, "[Telepathy] Server client thread exception: " + exception);
                         }
                     });
                     receiveThread.IsBackground = true;
@@ -123,15 +125,15 @@ namespace NetFrame.NewServer
             }
             catch (ThreadAbortException exception)
             {
-                //Log.Info("[Telepathy] Server thread aborted. That's okay. " + exception); ////TODO !!!!!
+                LogCall?.Invoke(LogType.Info, "[NetFrameServer.Listen] Server thread aborted. That's okay. " + exception);
             }
             catch (SocketException exception)
             {
-                //Log.Info("[Telepathy] Server Thread stopped. That's okay. " + exception); //TODO !!!!!
+                LogCall?.Invoke(LogType.Info, "[NetFrameServer.Listen] Server Thread stopped. That's okay. " + exception);
             }
             catch (Exception exception)
             {
-                //Log.Error("[Telepathy] Server Exception: " + exception); //TODO !!!!!
+                LogCall?.Invoke(LogType.Error, "[NetFrameServer.Listen] Server Exception: " + exception);
             }
         }
         
@@ -141,7 +143,7 @@ namespace NetFrame.NewServer
             
             _receivePipe = new MagnificentReceivePipe(MaxMessageSize);
             
-            //Log.Info($"[Telepathy] Starting server on port {port}"); //TODO !!!!!
+            LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Start] Starting server on port {port}");
 
             _listenerThread = new Thread(() => { Listen(port); });
             _listenerThread.IsBackground = true;
@@ -154,7 +156,7 @@ namespace NetFrame.NewServer
         {
             if (!Active) return;
 
-            //Log.Info("[Telepathy] Server: stopping...");  //TODO !!!!!
+            LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Stop] Server: stopping...");
             
             _tcpListener?.Stop();
             
@@ -224,21 +226,19 @@ namespace NetFrame.NewServer
                         connection.sendPending.Set();
                         return true;
                     }
-                    else
-                    {
-                        //TODO 
-                        //Log.Warning($"[Telepathy] Server.Send: sendPipe for connection {connectionId} reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting this connection for load balancing.");
-                        connection.tcpClient.Close();
-                        return false;
-                    }
+
+                    LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Server.Send: sendPipe for connection {connectionId} reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting this connection for load balancing.");
+                    connection.tcpClient.Close();
+                    return false;
                 }
                 return false;
             }
-            //Log.Error("[Telepathy] Server.Send: message too big: " + message.Count + ". Limit: " + MaxMessageSize); //TODO
+
+            LogCall?.Invoke(LogType.Error, "[NetFrameClient.Send] Server.Send: message too big: " + message.Count + ". Limit: " + MaxMessageSize);
             return false;
         }
 
-        // TODO ip-адрес клиента иногда требуется серверу, например, для банов
+        //the client's IP address is sometimes required by the server, for example, for bans
         public string GetClientAddress(int connectionId)
         {
             if (_clients.TryGetValue(connectionId, out ConnectionState connection))
@@ -249,14 +249,12 @@ namespace NetFrame.NewServer
         }
 
         // disconnect (kick) a client
-        public bool Disconnect(int connectionId)
+        public bool Disconnect(int clientId)
         {
-            // find the connection
-            if (_clients.TryGetValue(connectionId, out ConnectionState connection))
+            if (_clients.TryGetValue(clientId, out ConnectionState connection))
             {
-                // just close it. send thread will take care of the rest.
                 connection.tcpClient.Close();
-                // Log.Info("[Telepathy] Server.Disconnect connectionId:" + connectionId); //TODO 
+                LogCall?.Invoke(LogType.Info, "[NetFrameClient.Send] Server.Disconnect connectionId:" + clientId);
                 return true;
             }
             return false;
@@ -299,7 +297,7 @@ namespace NetFrame.NewServer
             return _receivePipe.TotalCount;
         }
 
-        private void BeginReadDataframe(int clientId, ArraySegment<byte> receiveBytes) //TODO метод который конвертит датафрейм
+        private void BeginReadDataframe(int clientId, ArraySegment<byte> receiveBytes)
         {
             var allBytes = receiveBytes.Array;
 
@@ -309,7 +307,7 @@ namespace NetFrame.NewServer
             }
             
             var packageSizeSegment = new ArraySegment<byte>(allBytes, 0, NetFrameConstants.SizeByteCount);
-            var packageSize = _byteConverter.GetUIntFromByteArray(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
+            var packageSize = Utils.BytesToIntBigEndian(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
             var packageBytes = new ArraySegment<byte>(allBytes, 0, packageSize);
             
             var tempIndex = 0;
@@ -333,15 +331,14 @@ namespace NetFrame.NewServer
             
             if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
             {
-                Console.WriteLine($"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
-                //Debug.LogError($"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
-                //TODO тут надо принудительно отключить такого клиента ---------->
+                LogCall?.Invoke(LogType.Error, $"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
+                Disconnect(clientId);
                 return;
             }
             
             var targetType = dataframe.GetType();
 
-            _reader = new NetFrameReader(new byte[packageSize]); //TODO точно packageSize ???? 
+            _reader = new NetFrameReader(new byte[packageSize]);
             _reader.SetBuffer(contentSegment);
             
             dataframe.Read(_reader);

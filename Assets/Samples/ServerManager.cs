@@ -6,6 +6,7 @@ using NetFrame.Utils;
 using Samples.Dataframes;
 using Samples.Dataframes.Collections;
 using UnityEngine;
+using LogType = NetFrame.NewServer.LogType;
 
 namespace Samples
 {
@@ -16,25 +17,16 @@ namespace Samples
         private void Start()
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
-            _server = new Server(1000);
+            _server = new Server(50000);
             
             _server.Start(8080, 10);
 
             _server.ClientConnection += OnClientConnection;
             _server.ClientDisconnect += OnClientDisconnect;
+            _server.LogCall += OnLog;
             
             _server.Subscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
             _server.Subscribe<TestNicknameDataframe>(TestNicknameDataframeHandler);
-        }
-
-        private void OnClientConnection(int id)
-        {
-            Debug.Log($"client connected Id = {id}");
-        }
-        
-        private void OnClientDisconnect(int id)
-        {
-            Debug.Log($"client disconnected Id = {id}");
         }
 
         private void Update()
@@ -97,6 +89,32 @@ namespace Samples
             }
         }
         
+        private void OnClientConnection(int id)
+        {
+            Debug.Log($"client connected Id = {id}");
+        }
+        
+        private void OnClientDisconnect(int id)
+        {
+            Debug.Log($"client disconnected Id = {id}");
+        }
+        
+        private void OnLog(LogType reason, string value)
+        {
+            switch (reason)
+            {
+                case LogType.Info:
+                    Debug.Log(value);
+                    break;
+                case LogType.Warning:
+                    Debug.LogWarning(value);
+                    break;
+                case LogType.Error:
+                    Debug.LogError(value);
+                    break;
+            }
+        }
+        
         private void TestByteDataframeHandler(TestByteNetworkDataframe networkDataframe, int id)
         {
             Debug.Log($"TestByteDataframe: client id = {id} | {networkDataframe.Value1} {networkDataframe.Value2} {networkDataframe.Value3}");
@@ -111,10 +129,11 @@ namespace Samples
         {
             _server.ClientConnection -= OnClientConnection;
             _server.ClientDisconnect -= OnClientDisconnect;
+            _server.LogCall -= OnLog;
             
             _server.Unsubscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
         }
-        
+
         private void OnApplicationQuit()
         {
             _server.Stop();

@@ -11,6 +11,7 @@ using NetFrame.WriteAndRead;
 
 namespace NetFrame.NewServer
 {
+    //todo проверить буфера чтения и записи, посмотреть как все работает и перетосовать методы
     public class Client
     {
         public int SendQueueLimit = 10000;
@@ -33,7 +34,8 @@ namespace NetFrame.NewServer
 
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
-        
+        public event Action<LogType, string> LogCall;
+
         public Client(int MaxMessageSize)
         {
             this.MaxMessageSize = MaxMessageSize;
@@ -42,7 +44,7 @@ namespace NetFrame.NewServer
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
         
-        private static void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int MaxMessageSize, bool NoDelay, int SendTimeout, int ReceiveTimeout, int ReceiveQueueLimit)
+        private void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int MaxMessageSize, bool NoDelay, int SendTimeout, int ReceiveTimeout, int ReceiveQueueLimit)
         {
             Thread sendThread = null;
             try
@@ -62,7 +64,7 @@ namespace NetFrame.NewServer
             }
             catch (SocketException exception)
             {
-                //Log.Info("[Telepathy] Client Recv: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception); //TODO
+                LogCall?.Invoke(LogType.Error, "[NetFrameClient.ReceiveThreadFunction]: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception);
             }
             catch (ThreadInterruptedException)
             {
@@ -78,7 +80,7 @@ namespace NetFrame.NewServer
             }
             catch (Exception exception)
             {
-                //Log.Error("[Telepathy] Client Recv Exception: " + exception); //TODO
+                LogCall?.Invoke(LogType.Error, "[NetFrameClient.ReceiveThreadFunction] Exception: " + exception);
             }
             state.receivePipe.Enqueue(0, EventType.Disconnected, default);
             sendThread?.Interrupt();
@@ -89,22 +91,21 @@ namespace NetFrame.NewServer
 
         public void Connect(string ip, int port)
         {
-            // not if already started
             if (Connecting || Connected)
             {
-                //Log.Warning("[Telepathy] Client can not create connection because an existing connection is connecting or connected"); //TODO
+                LogCall?.Invoke(LogType.Warning, "[NetFrameClient.Connect] Client can not create connection because an existing connection is connecting or connected");
                 return;
             }
             
             _state = new ClientConnectionState(MaxMessageSize);
-            
             _state.Connecting = true;
-            
             _state.tcpClient.Client = null;
             
-            _state.receiveThread = new Thread(() => {
+            _state.receiveThread = new Thread(() => 
+            {
                 ReceiveThreadFunction(_state, ip, port, MaxMessageSize, NoDelay, SendTimeout, ReceiveTimeout, ReceiveQueueLimit);
             });
+            
             _state.receiveThread.IsBackground = true;
             _state.receiveThread.Start();
         }
@@ -140,38 +141,30 @@ namespace NetFrame.NewServer
         {
             return typeof(T).Name;
         }
-        
-        public bool Send(ArraySegment<byte> message)
+
+        private void Send(ArraySegment<byte> message)
         {
             if (Connected)
             {
                 if (message.Count <= MaxMessageSize)
                 {
-                    // check send pipe limit
                     if (_state.sendPipe.Count < SendQueueLimit)
                     {
                         _state.sendPipe.Enqueue(message);
                         _state.sendPending.Set();
-                        return true;
                     }
                     else
                     {
-                        // log the reason
-                        //TODO
-                        //Log.Warning($"[Telepathy] Client.Send: sendPipe reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
-
-                        // just close it. send thread will take care of the rest.
+                        LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
+                        
                         _state.tcpClient.Close();
-                        return false;
                     }
                 }
-                //TODO
-                //Log.Error("[Telepathy] Client.Send: message too big: " + message.Count + ". Limit: " + MaxMessageSize);
-                return false;
+        
+                LogCall?.Invoke(LogType.Error, "[NetFrameClient.Send] Client.Send: message too big: " + message.Count + ". Limit: " + MaxMessageSize);
             }
-            //TODO
-            //Log.Warning("[Telepathy] Client.Send: not connected!");
-            return false;
+            
+            LogCall?.Invoke(LogType.Warning, "[Telepathy] Client.Send: not connected!");
         }
 
         public int Run(int processLimit, Func<bool> checkEnabled = null)
@@ -214,7 +207,7 @@ namespace NetFrame.NewServer
             return _state.receivePipe.TotalCount;
         }
         
-        private void BeginReadDataframe(ArraySegment<byte> receiveBytes) //TODO метод который конвертит датафрейм
+        private void BeginReadDataframe(ArraySegment<byte> receiveBytes)
         {
             var allBytes = receiveBytes.Array;
 
@@ -224,7 +217,7 @@ namespace NetFrame.NewServer
             }
             
             var packageSizeSegment = new ArraySegment<byte>(allBytes, 0, NetFrameConstants.SizeByteCount);
-            var packageSize = _byteConverter.GetUIntFromByteArray(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
+            var packageSize = Utils.BytesToIntBigEndian(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
             var packageBytes = new ArraySegment<byte>(allBytes, 0, packageSize);
             
             var tempIndex = 0;
@@ -248,15 +241,14 @@ namespace NetFrame.NewServer
             
             if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
             {
-                Console.WriteLine($"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
-                //Debug.LogError($"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
-                //TODO тут надо принудительно отключить такого клиента ---------->
+                LogCall?.Invoke(LogType.Error, $"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
+                Disconnect();
                 return;
             }
             
             var targetType = dataframe.GetType();
 
-            _reader = new NetFrameReader(new byte[packageSize]); //TODO точно packageSize ???? 
+            _reader = new NetFrameReader(new byte[packageSize]);
             _reader.SetBuffer(contentSegment);
             
             dataframe.Read(_reader);

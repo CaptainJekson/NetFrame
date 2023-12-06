@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using NetFrame.Client;
 using NetFrame.Enums;
@@ -5,6 +6,7 @@ using NetFrame.NewServer;
 using NetFrame.Utils;
 using Samples.Dataframes;
 using UnityEngine;
+using LogType = NetFrame.NewServer.LogType;
 using Random = UnityEngine.Random;
 
 namespace Samples
@@ -17,12 +19,12 @@ namespace Samples
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
-            _client = new Client(1000);
+            _client = new Client(50000);
             
             _client.Connect("127.0.0.1", 8080);
 
             _client.ConnectionSuccessful += OnConnectionSuccessful;
-            //_client.ConnectedFailed += OnConnectedFailed;
+            _client.LogCall += OnLog;
             _client.Disconnected += OnDisconnected;
             
             _client.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
@@ -30,41 +32,7 @@ namespace Samples
             _client.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
             _client.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
         }
-
-        private void OnDisconnected()
-        {
-            Debug.Log("Disconnected from the server");
-        }
         
-        private void OnConnectionSuccessful()
-        {
-            var dataframe = new TestNicknameDataframe
-            {
-                Nickname = "Mega_nagibator",
-            };
-            //_client.Send(ref dataframe);
-            Debug.Log("Connected Successful to server");
-        }
-        
-        private void OnConnectedFailed(ReasonServerConnectionFailed reason, string parameters)
-        {
-            switch (reason)
-            {
-                case ReasonServerConnectionFailed.AlreadyConnected:
-                    Debug.LogError($"already connected {parameters}");
-                    break;
-                case ReasonServerConnectionFailed.ImpossibleToConnect:
-                    Debug.LogError($"impossible to connect {parameters}");
-                    break;
-                case ReasonServerConnectionFailed.ConnectionLost:
-                    Debug.LogError($"connection lost {parameters}");
-                    break;
-                case ReasonServerConnectionFailed.NoDataframe:
-                    Debug.LogError($"no dataframe {parameters}"); 
-                    break;
-            }
-        }
-
         private void Update()
         {
             _client.Run(100);
@@ -90,7 +58,38 @@ namespace Samples
                 _client.Send(ref testByteDataframe);
             }
         }
+
+        private void OnDisconnected()
+        {
+            Debug.Log("Disconnected from the server");
+        }
         
+        private void OnConnectionSuccessful()
+        {
+            var dataframe = new TestNicknameDataframe
+            {
+                Nickname = "Mega_nagibator",
+            };
+            //_client.Send(ref dataframe);
+            Debug.Log("Connected Successful to server");
+        }
+        
+        private void OnLog(LogType reason, string value)
+        {
+            switch (reason)
+            {
+                case LogType.Info:
+                    Debug.Log(value);
+                    break;
+                case LogType.Warning:
+                    Debug.LogWarning(value);
+                    break;
+                case LogType.Error:
+                    Debug.LogError(value);
+                    break;
+            }
+        }
+
         private void TestByteDataframeHandler(TestStringIntNetworkDataframe networkDataframe)
         {
             Debug.Log($"TestByteDataframe: {networkDataframe.Name} {networkDataframe.Age}");
@@ -118,7 +117,7 @@ namespace Samples
         private void OnDestroy()
         {
             _client.ConnectionSuccessful -= OnConnectionSuccessful;
-            //_client.ConnectedFailed -= OnConnectedFailed;
+            _client.LogCall -= OnLog;
             _client.Disconnected -= OnDisconnected;
             
             _client.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
