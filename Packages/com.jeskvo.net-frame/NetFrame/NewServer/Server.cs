@@ -9,19 +9,20 @@ using System.Threading;
 using NetFrame.Constants;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.NewServer
 {
-    //todo изучить как все работает и перетосовать методы
+    //TODO остановился изучать там где ListenConnectionClients создаються два потока для отправки и слушания для tcpClient
     public class Server
     {
-        public int SendTimeout = 5000;
-        public int SendQueueLimit = 10000;
-        public int ReceiveQueueLimit = 10000;
+        private readonly int _sendTimeout = 5000;
+        private readonly int _sendQueueLimit = 10000;
+        private readonly int _receiveQueueLimit = 10000;
 
-        public int ReceiveTimeout = 0;
-        public bool NoDelay = true;
-        public readonly int MaxMessageSize;
+        private readonly int _receiveTimeout = 0;
+        private readonly bool _noDelay = true;
+        private readonly int _maxMessageSize;
 
         private TcpListener _tcpListener;
         private Thread _listenerThread;
@@ -30,12 +31,13 @@ namespace NetFrame.NewServer
         private readonly ConcurrentDictionary<int, ConnectionState> _clients;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         private readonly NetFrameByteConverter _byteConverter;
+        private readonly NetFrameWriter _writer;
         private NetFrameReader _reader;
-        private NetFrameWriter _writer;
         
         public int ReceivePipeTotalCount => _receivePipe.TotalCount;
         
         private int _clientIdCounter;
+        private int _maxClients;
         
         private bool Active => _listenerThread != null && _listenerThread.IsAlive;
         
@@ -45,106 +47,31 @@ namespace NetFrame.NewServer
         
         public Server(int maxMessageSize)
         {
-            MaxMessageSize = maxMessageSize;
+            _maxMessageSize = maxMessageSize;
 
             _clients = new ConcurrentDictionary<int, ConnectionState>();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
             _byteConverter = new NetFrameByteConverter();
             _writer = new NetFrameWriter();
         }
-
-        private int NextConnectionId()
-        {
-            int id = Interlocked.Increment(ref _clientIdCounter);
-            
-            if (id == int.MaxValue)
-            {
-                throw new Exception("connection id limit reached: " + id);
-            }
-
-            return id;
-        }
-
-        private void Listen(int port)
-        {
-            try
-            {
-                _tcpListener = TcpListener.Create(port);
-                _tcpListener.Server.NoDelay = NoDelay;
-                _tcpListener.Start();
-                
-                LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Listen] Starting server on port {port}");
-                
-                while (true)
-                {
-                    TcpClient client = _tcpListener.AcceptTcpClient();
-                    
-                    client.NoDelay = NoDelay;
-                    client.SendTimeout = SendTimeout;
-                    client.ReceiveTimeout = ReceiveTimeout;
-                    
-                    int connectionId = NextConnectionId();
-                    
-                    ConnectionState connection = new ConnectionState(client, MaxMessageSize);
-                    _clients[connectionId] = connection;
-
-                    Thread sendThread = new Thread(() =>
-                    {
-                        try
-                        {
-                            ThreadFunctions.SendLoop(connectionId, client, connection.sendPipe, connection.sendPending);
-                        }
-                        catch (ThreadAbortException)
-                        {
-                            
-                        }
-                        catch (Exception exception)
-                        {
-                            LogCall?.Invoke(LogType.Error, "[NetFrameServer.Listen] Server send thread exception: " + exception);
-                        }
-                    });
-                    sendThread.IsBackground = true;
-                    sendThread.Start();
-
-                    Thread receiveThread = new Thread(() =>
-                    {
-                        try
-                        {
-                            ThreadFunctions.ReceiveLoop(connectionId, client, MaxMessageSize, _receivePipe, ReceiveQueueLimit);
-                            sendThread.Interrupt();
-                        }
-                        catch (Exception exception)
-                        {
-                            LogCall?.Invoke(LogType.Error, "[Telepathy] Server client thread exception: " + exception);
-                        }
-                    });
-                    receiveThread.IsBackground = true;
-                    receiveThread.Start();
-                }
-            }
-            catch (ThreadAbortException exception)
-            {
-                LogCall?.Invoke(LogType.Info, "[NetFrameServer.Listen] Server thread aborted. That's okay. " + exception);
-            }
-            catch (SocketException exception)
-            {
-                LogCall?.Invoke(LogType.Info, "[NetFrameServer.Listen] Server Thread stopped. That's okay. " + exception);
-            }
-            catch (Exception exception)
-            {
-                LogCall?.Invoke(LogType.Error, "[NetFrameServer.Listen] Server Exception: " + exception);
-            }
-        }
         
         public bool Start(int port, int maxClients) //todo сделать функционал с maxClients
         {
-            if (Active) return false;
-            
-            _receivePipe = new MagnificentReceivePipe(MaxMessageSize);
+            if (Active)
+            {
+                return false;
+            }
+
+            _receivePipe = new MagnificentReceivePipe(_maxMessageSize);
+            _maxClients = maxClients;
             
             LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Start] Starting server on port {port}");
 
-            _listenerThread = new Thread(() => { Listen(port); });
+            _listenerThread = new Thread(() =>
+            {
+                ListenConnectionClients(port);
+            });
+            
             _listenerThread.IsBackground = true;
             _listenerThread.Priority = ThreadPriority.BelowNormal;
             _listenerThread.Start();
@@ -168,7 +95,6 @@ namespace NetFrame.NewServer
                 try
                 {
                     tcpClient.GetStream().Close();
-
                 }
                 catch
                 {
@@ -208,55 +134,27 @@ namespace NetFrame.NewServer
             }
         }
         
-        private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
+        public void Subscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
         {
-            return typeof(T).Name;
+            _handlers.AddOrUpdate(typeof(T), new List<Delegate> { handler }, (_, currentHandlers) => 
+            {
+                currentHandlers ??= new List<Delegate>();
+                currentHandlers.Add(handler);
+                return currentHandlers;
+            });
         }
         
-        public bool Send(int connectionId, ArraySegment<byte> message) //TODO
+        public void Unsubscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
         {
-            if (message.Count <= MaxMessageSize)
+            if (_handlers.TryGetValue(typeof(T), out var handlers))
             {
-                if (_clients.TryGetValue(connectionId, out ConnectionState connection))
+                handlers.Remove(handler);
+                
+                if (handlers.Count == 0)
                 {
-                    if (connection.sendPipe.Count < SendQueueLimit)
-                    {
-                        connection.sendPipe.Enqueue(message);
-                        connection.sendPending.Set();
-                        return true;
-                    }
-
-                    LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Server.Send: sendPipe for connection {connectionId} reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting this connection for load balancing.");
-                    connection.tcpClient.Close();
-                    return false;
+                    _handlers.TryRemove(typeof(T), out _);
                 }
-                return false;
             }
-
-            LogCall?.Invoke(LogType.Error, "[NetFrameClient.Send] Server.Send: message too big: " + message.Count + ". Limit: " + MaxMessageSize);
-            return false;
-        }
-
-        //the client's IP address is sometimes required by the server, for example, for bans
-        public string GetClientAddress(int connectionId)
-        {
-            if (_clients.TryGetValue(connectionId, out ConnectionState connection))
-            {
-                return ((IPEndPoint)connection.tcpClient.Client.RemoteEndPoint).Address.ToString();
-            }
-            return "";
-        }
-
-        // disconnect (kick) a client
-        public bool Disconnect(int clientId)
-        {
-            if (_clients.TryGetValue(clientId, out ConnectionState connection))
-            {
-                connection.tcpClient.Close();
-                LogCall?.Invoke(LogType.Info, "[NetFrameClient.Send] Server.Disconnect connectionId:" + clientId);
-                return true;
-            }
-            return false;
         }
         
         public int Run(int processLimit, Func<bool> checkEnabled = null)
@@ -294,6 +192,158 @@ namespace NetFrame.NewServer
             }
             
             return _receivePipe.TotalCount;
+        }
+        
+        //the client's IP address is sometimes required by the server, for example, for bans
+        public string GetClientAddress(int connectionId)
+        {
+            if (_clients.TryGetValue(connectionId, out ConnectionState connection))
+            {
+                return ((IPEndPoint)connection.tcpClient.Client.RemoteEndPoint).Address.ToString();
+            }
+            return "";
+        }
+
+        // disconnect (kick) a client
+        public bool Disconnect(int clientId)
+        {
+            if (_clients.TryGetValue(clientId, out ConnectionState connection))
+            {
+                connection.tcpClient.Close();
+                LogCall?.Invoke(LogType.Info, "[NetFrameClient.Send] Server.Disconnect connectionId:" + clientId);
+                return true;
+            }
+            return false;
+        }
+
+        private int NextConnectionId()
+        {
+            int id = Interlocked.Increment(ref _clientIdCounter);
+            
+            if (id == int.MaxValue)
+            {
+                throw new Exception("connection id limit reached: " + id);
+            }
+
+            return id;
+        }
+
+        private void ListenConnectionClients(int port)
+        {
+            try
+            {
+                _tcpListener = TcpListener.Create(port);
+                _tcpListener.Server.NoDelay = _noDelay;
+                _tcpListener.Start();
+                
+                LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Listen] Starting server on port {port}");
+                
+                while (true)
+                {
+                    TcpClient tcpClient = _tcpListener.AcceptTcpClient();
+
+                    if (_clients.Count >= _maxClients)
+                    {
+                        try
+                        {
+                            tcpClient.GetStream().Close();
+                        }
+                        catch
+                        {
+                    
+                        }
+                        
+                        tcpClient.Close();
+                        
+                        LogCall?.Invoke(LogType.Warning, $"[NetFrameServer.Listen] The customer limit has been reached: {_clients.Count}");
+                        
+                        continue;
+                    }
+                    
+                    tcpClient.NoDelay = _noDelay;
+                    tcpClient.SendTimeout = _sendTimeout;
+                    tcpClient.ReceiveTimeout = _receiveTimeout;
+                    
+                    int connectionId = NextConnectionId();
+                    
+                    ConnectionState connection = new ConnectionState(tcpClient, _maxMessageSize);
+                    _clients[connectionId] = connection;
+
+                    Thread sendThread = new Thread(() =>
+                    {
+                        try
+                        {
+                            ThreadFunctions.SendLoop(connectionId, tcpClient, connection.sendPipe, connection.sendPending);
+                        }
+                        catch (ThreadAbortException)
+                        {
+                            
+                        }
+                        catch (Exception exception)
+                        {
+                            LogCall?.Invoke(LogType.Error, "[NetFrameServer.Listen] Server send thread exception: " + exception);
+                        }
+                    });
+                    sendThread.IsBackground = true;
+                    sendThread.Start();
+
+                    Thread receiveThread = new Thread(() =>
+                    {
+                        try
+                        {
+                            ThreadFunctions.ReceiveLoop(connectionId, tcpClient, _maxMessageSize, _receivePipe, _receiveQueueLimit);
+                            sendThread.Interrupt();
+                        }
+                        catch (Exception exception)
+                        {
+                            LogCall?.Invoke(LogType.Error, "[Telepathy] Server client thread exception: " + exception);
+                        }
+                    });
+                    receiveThread.IsBackground = true;
+                    receiveThread.Start();
+                }
+            }
+            catch (ThreadAbortException exception)
+            {
+                LogCall?.Invoke(LogType.Info, "[NetFrameServer.Listen] Server thread aborted. That's okay. " + exception);
+            }
+            catch (SocketException exception)
+            {
+                LogCall?.Invoke(LogType.Info, "[NetFrameServer.Listen] Server Thread stopped. That's okay. " + exception);
+            }
+            catch (Exception exception)
+            {
+                LogCall?.Invoke(LogType.Error, "[NetFrameServer.Listen] Server Exception: " + exception);
+            }
+        }
+
+        private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
+        {
+            return typeof(T).Name;
+        }
+
+        private bool Send(int connectionId, ArraySegment<byte> message) //TODO
+        {
+            if (message.Count <= _maxMessageSize)
+            {
+                if (_clients.TryGetValue(connectionId, out ConnectionState connection))
+                {
+                    if (connection.sendPipe.Count < _sendQueueLimit)
+                    {
+                        connection.sendPipe.Enqueue(message);
+                        connection.sendPending.Set();
+                        return true;
+                    }
+
+                    LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Server.Send: sendPipe for connection {connectionId} reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting this connection for load balancing.");
+                    connection.tcpClient.Close();
+                    return false;
+                }
+                return false;
+            }
+
+            LogCall?.Invoke(LogType.Error, "[NetFrameClient.Send] Server.Send: message too big: " + message.Count + ". Limit: " + _maxMessageSize);
+            return false;
         }
 
         private void BeginReadDataframe(int clientId, ArraySegment<byte> receiveBytes)
@@ -347,29 +397,6 @@ namespace NetFrame.NewServer
                 foreach (var handler in handlers)
                 {
                     handler.DynamicInvoke(dataframe, clientId);
-                }
-            }
-        }
-        
-        public void Subscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
-        {
-            _handlers.AddOrUpdate(typeof(T), new List<Delegate> { handler }, (_, currentHandlers) => 
-            {
-                currentHandlers ??= new List<Delegate>();
-                currentHandlers.Add(handler);
-                return currentHandlers;
-            });
-        }
-        
-        public void Unsubscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
-        {
-            if (_handlers.TryGetValue(typeof(T), out var handlers))
-            {
-                handlers.Remove(handler);
-                
-                if (handlers.Count == 0)
-                {
-                    _handlers.TryRemove(typeof(T), out _);
                 }
             }
         }

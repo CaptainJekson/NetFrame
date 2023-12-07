@@ -8,28 +8,26 @@ using System.Threading;
 using NetFrame.Constants;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using UnityEngine;
-
 namespace NetFrame.NewServer
 {
-    //todo изучить как все работает и перетосовать методы
     public class Client
     {
-        public int SendQueueLimit = 10000;
-        public int ReceiveQueueLimit = 10000;
-        public bool NoDelay = false;
-        public readonly int MaxMessageSize;
-        public int SendTimeout = 5000;
-        public int ReceiveTimeout = 0;
+        private readonly int _sendQueueLimit = 10000;
+        private readonly int _receiveQueueLimit = 10000;
+        private readonly bool _noDelay = true;
+        private readonly int _maxMessageSize;
+        private readonly int _sendTimeout = 5000;
+        private readonly int _receiveTimeout = 0;
         
-        private NetFrameWriter _writer;
-        private NetFrameReader _reader;
         private ClientConnectionState _state;
+        
         private readonly NetFrameByteConverter _byteConverter;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
-        
-        public bool Connected => _state != null && _state.Connected;
-        public bool Connecting => _state != null && _state.Connecting;
+        private readonly NetFrameWriter _writer;
+        private NetFrameReader _reader;
+
+        private bool Connected => _state != null && _state.Connected;
+        private bool Connecting => _state != null && _state.Connecting;
         
         public int ReceivePipeCount => _state != null ? _state.receivePipe.TotalCount : 0;
 
@@ -37,59 +35,14 @@ namespace NetFrame.NewServer
         public event Action Disconnected;
         public event Action<LogType, string> LogCall;
 
-        public Client(int MaxMessageSize)
+        public Client(int maxMessageSize)
         {
-            this.MaxMessageSize = MaxMessageSize;
-            _writer = new NetFrameWriter(); //todo что с размером ??? он будет увеличиваться???
+            _maxMessageSize = maxMessageSize;
+            _writer = new NetFrameWriter();
             _byteConverter = new NetFrameByteConverter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
         
-        private void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int MaxMessageSize, bool NoDelay, int SendTimeout, int ReceiveTimeout, int ReceiveQueueLimit)
-        {
-            Thread sendThread = null;
-            try
-            {
-                state.tcpClient.Connect(ip, port);
-                state.Connecting = false;
-                
-                state.tcpClient.NoDelay = NoDelay;
-                state.tcpClient.SendTimeout = SendTimeout;
-                state.tcpClient.ReceiveTimeout = ReceiveTimeout;
-                
-                sendThread = new Thread(() => { ThreadFunctions.SendLoop(0, state.tcpClient, state.sendPipe, state.sendPending); });
-                sendThread.IsBackground = true;
-                sendThread.Start();
-                
-                ThreadFunctions.ReceiveLoop(0, state.tcpClient, MaxMessageSize, state.receivePipe, ReceiveQueueLimit);
-            }
-            catch (SocketException exception)
-            {
-                LogCall?.Invoke(LogType.Error, "[NetFrameClient.ReceiveThreadFunction]: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception);
-            }
-            catch (ThreadInterruptedException)
-            {
-                // expected if Disconnect() aborts it
-            }
-            catch (ThreadAbortException)
-            {
-                
-            }
-            catch (ObjectDisposedException)
-            {
-          
-            }
-            catch (Exception exception)
-            {
-                LogCall?.Invoke(LogType.Error, "[NetFrameClient.ReceiveThreadFunction] Exception: " + exception);
-            }
-            state.receivePipe.Enqueue(0, EventType.Disconnected, default);
-            sendThread?.Interrupt();
-            
-            state.Connecting = false;
-            state.tcpClient?.Close();
-        }
-
         public void Connect(string ip, int port)
         {
             if (Connecting || Connected)
@@ -98,13 +51,13 @@ namespace NetFrame.NewServer
                 return;
             }
             
-            _state = new ClientConnectionState(MaxMessageSize);
+            _state = new ClientConnectionState(_maxMessageSize);
             _state.Connecting = true;
             _state.tcpClient.Client = null;
             
             _state.receiveThread = new Thread(() => 
             {
-                ReceiveThreadFunction(_state, ip, port, MaxMessageSize, NoDelay, SendTimeout, ReceiveTimeout, ReceiveQueueLimit);
+                ReceiveThreadFunction(_state, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
             });
             
             _state.receiveThread.IsBackground = true;
@@ -138,39 +91,29 @@ namespace NetFrame.NewServer
             Send(allPackage);
         }
         
-        private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
+        public void Subscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
         {
-            return typeof(T).Name;
-        }
-
-        private bool Send(ArraySegment<byte> message)
-        {
-            if (Connected)
+            _handlers.AddOrUpdate(typeof(T), new List<Delegate> { handler }, (_, currentHandlers) => 
             {
-                if (message.Count <= MaxMessageSize)
-                {
-                    if (_state.sendPipe.Count < SendQueueLimit)
-                    {
-                        _state.sendPipe.Enqueue(message);
-                        _state.sendPending.Set();
-                        return true;
-                    }
-                    else
-                    {
-                        LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
-                        _state.tcpClient.Close();
-                        return false;
-                    }
-                }
-        
-                LogCall?.Invoke(LogType.Error, "[NetFrameClient.Send] Client.Send: message too big: " + message.Count + ". Limit: " + MaxMessageSize);
-                return false;
-            }
-            
-            LogCall?.Invoke(LogType.Warning, "[Telepathy] Client.Send: not connected!");
-            return false;
+                currentHandlers ??= new List<Delegate>();
+                currentHandlers.Add(handler);
+                return currentHandlers;
+            });
         }
 
+        public void Unsubscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
+        {
+            if (_handlers.TryGetValue(typeof(T), out var handlers))
+            {
+                handlers.Remove(handler);
+                
+                if (handlers.Count == 0)
+                {
+                    _handlers.TryRemove(typeof(T), out _);
+                }
+            }
+        }
+        
         public int Run(int processLimit, Func<bool> checkEnabled = null)
         {
             if (_state == null)
@@ -211,6 +154,86 @@ namespace NetFrame.NewServer
             return _state.receivePipe.TotalCount;
         }
         
+        private void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int maxMessageSize, 
+            bool noDelay, int sendTimeout, int receiveTimeout, int receiveQueueLimit)
+        {
+            Thread sendThread = null;
+            try
+            {
+                state.tcpClient.Connect(ip, port);
+                state.Connecting = false;
+                
+                state.tcpClient.NoDelay = noDelay;
+                state.tcpClient.SendTimeout = sendTimeout;
+                state.tcpClient.ReceiveTimeout = receiveTimeout;
+                
+                sendThread = new Thread(() => { ThreadFunctions.SendLoop(0, state.tcpClient, state.sendPipe, state.sendPending); });
+                sendThread.IsBackground = true;
+                sendThread.Start();
+                
+                ThreadFunctions.ReceiveLoop(0, state.tcpClient, maxMessageSize, state.receivePipe, receiveQueueLimit);
+            }
+            catch (SocketException exception)
+            {
+                LogCall?.Invoke(LogType.Error, "[NetFrameClient.ReceiveThreadFunction]: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception);
+            }
+            catch (ThreadInterruptedException)
+            {
+                // expected if Disconnect() aborts it
+            }
+            catch (ThreadAbortException)
+            {
+                
+            }
+            catch (ObjectDisposedException)
+            {
+          
+            }
+            catch (Exception exception)
+            {
+                LogCall?.Invoke(LogType.Error, "[NetFrameClient.ReceiveThreadFunction] Exception: " + exception);
+            }
+            
+            //state.receivePipe.Enqueue(0, EventType.Disconnected, default);// из за этого событие дисконнекта срабатывает два раза
+            sendThread?.Interrupt();
+            
+            state.Connecting = false;
+            state.tcpClient?.Close();
+        }
+
+        private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
+        {
+            return typeof(T).Name;
+        }
+
+        private bool Send(ArraySegment<byte> message)
+        {
+            if (Connected)
+            {
+                if (message.Count <= _maxMessageSize)
+                {
+                    if (_state.sendPipe.Count < _sendQueueLimit)
+                    {
+                        _state.sendPipe.Enqueue(message);
+                        _state.sendPending.Set();
+                        return true;
+                    }
+                    else
+                    {
+                        LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
+                        _state.tcpClient.Close();
+                        return false;
+                    }
+                }
+        
+                LogCall?.Invoke(LogType.Error, "[NetFrameClient.Send] Client.Send: message too big: " + message.Count + ". Limit: " + _maxMessageSize);
+                return false;
+            }
+            
+            LogCall?.Invoke(LogType.Warning, "[Telepathy] Client.Send: not connected!");
+            return false;
+        }
+
         private void BeginReadDataframe(ArraySegment<byte> receiveBytes)
         {
             var allBytes = receiveBytes.Array;
@@ -262,29 +285,6 @@ namespace NetFrame.NewServer
                 foreach (var handler in handlers)
                 {
                     handler.DynamicInvoke(dataframe);
-                }
-            }
-        }
-        
-        public void Subscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
-        {
-            _handlers.AddOrUpdate(typeof(T), new List<Delegate> { handler }, (_, currentHandlers) => 
-            {
-                currentHandlers ??= new List<Delegate>();
-                currentHandlers.Add(handler);
-                return currentHandlers;
-            });
-        }
-
-        public void Unsubscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
-        {
-            if (_handlers.TryGetValue(typeof(T), out var handlers))
-            {
-                handlers.Remove(handler);
-                
-                if (handlers.Count == 0)
-                {
-                    _handlers.TryRemove(typeof(T), out _);
                 }
             }
         }
