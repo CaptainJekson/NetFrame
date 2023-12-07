@@ -25,6 +25,7 @@ namespace NetFrame.NewServer
         private NetFrameWriter _writer;
         private NetFrameReader _reader;
         private ClientConnectionState _state;
+        private readonly NetFrameByteConverter _byteConverter;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         
         public bool Connected => _state != null && _state.Connected;
@@ -40,6 +41,7 @@ namespace NetFrame.NewServer
         {
             this.MaxMessageSize = MaxMessageSize;
             _writer = new NetFrameWriter(); //todo что с размером ??? он будет увеличиваться???
+            _byteConverter = new NetFrameByteConverter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
         
@@ -130,8 +132,7 @@ namespace NetFrame.NewServer
             var allData = heaterDataframe.Concat(dataDataframe).ToArray();
 
             var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
-            var sizeBytes = new byte[allPackageSize];
-            Utils.UIntToBytesBigEndianNonAlloc(allPackageSize, sizeBytes);
+            var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
             var allPackage = sizeBytes.Concat(allData).ToArray();
 
             Send(allPackage);

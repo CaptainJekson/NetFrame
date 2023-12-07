@@ -19,22 +19,5 @@ namespace NetFrame.NewServer
                    (bytes[2] << 8) |
                    bytes[3];
         }
-        
-        //todo хз работает или нет, надо проверить
-        public static void UIntToBytesBigEndianNonAlloc(uint value, byte[] bytes, int offset = 0)
-        {
-            bytes[offset + 0] = (byte)(value >> 24);
-            bytes[offset + 1] = (byte)(value >> 16);
-            bytes[offset + 2] = (byte)(value >> 8);
-            bytes[offset + 3] = (byte)value;
-        }
-
-        public static uint BytesToUIntBigEndian(byte[] bytes)
-        {
-            return ((uint)bytes[0] << 24) |
-                   ((uint)bytes[1] << 16) |
-                   ((uint)bytes[2] << 8) |
-                   bytes[3];
-        }
     }
 }

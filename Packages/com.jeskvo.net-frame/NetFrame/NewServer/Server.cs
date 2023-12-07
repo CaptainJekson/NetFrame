@@ -29,6 +29,7 @@ namespace NetFrame.NewServer
         
         private readonly ConcurrentDictionary<int, ConnectionState> _clients;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
+        private readonly NetFrameByteConverter _byteConverter;
         private NetFrameReader _reader;
         private NetFrameWriter _writer;
         
@@ -48,6 +49,7 @@ namespace NetFrame.NewServer
 
             _clients = new ConcurrentDictionary<int, ConnectionState>();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
+            _byteConverter = new NetFrameByteConverter();
             _writer = new NetFrameWriter();
         }
 
@@ -192,8 +194,7 @@ namespace NetFrame.NewServer
             var dataDataframe = _writer.ToArraySegment();
             var allData = heaterDataframe.Concat(dataDataframe).ToArray();
             var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
-            var sizeBytes = new byte[allPackageSize];
-            Utils.UIntToBytesBigEndianNonAlloc(allPackageSize, sizeBytes);
+            var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
             var allPackage = sizeBytes.Concat(allData).ToArray();
 
             Send(clientId, allPackage);
@@ -305,7 +306,7 @@ namespace NetFrame.NewServer
             }
             
             var packageSizeSegment = new ArraySegment<byte>(allBytes, 0, NetFrameConstants.SizeByteCount);
-            var packageSize = Utils.BytesToIntBigEndian(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
+            var packageSize = Utils.BytesToIntBigEndian(packageSizeSegment.ToArray());
             var packageBytes = new ArraySegment<byte>(allBytes, 0, packageSize);
             
             var tempIndex = 0;
