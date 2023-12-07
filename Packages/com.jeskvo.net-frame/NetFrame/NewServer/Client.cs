@@ -8,15 +8,16 @@ using System.Threading;
 using NetFrame.Constants;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using UnityEngine;
 
 namespace NetFrame.NewServer
 {
-    //todo проверить буфера чтения и записи, посмотреть как все работает и перетосовать методы
+    //todo изучить как все работает и перетосовать методы
     public class Client
     {
         public int SendQueueLimit = 10000;
         public int ReceiveQueueLimit = 10000;
-        public bool NoDelay = true;
+        public bool NoDelay = false;
         public readonly int MaxMessageSize;
         public int SendTimeout = 5000;
         public int ReceiveTimeout = 0;
@@ -24,7 +25,6 @@ namespace NetFrame.NewServer
         private NetFrameWriter _writer;
         private NetFrameReader _reader;
         private ClientConnectionState _state;
-        private readonly NetFrameByteConverter _byteConverter;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         
         public bool Connected => _state != null && _state.Connected;
@@ -40,7 +40,6 @@ namespace NetFrame.NewServer
         {
             this.MaxMessageSize = MaxMessageSize;
             _writer = new NetFrameWriter(); //todo что с размером ??? он будет увеличиваться???
-            _byteConverter = new NetFrameByteConverter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
         
@@ -131,7 +130,8 @@ namespace NetFrame.NewServer
             var allData = heaterDataframe.Concat(dataDataframe).ToArray();
 
             var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
-            var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
+            var sizeBytes = new byte[allPackageSize];
+            Utils.UIntToBytesBigEndianNonAlloc(allPackageSize, sizeBytes);
             var allPackage = sizeBytes.Concat(allData).ToArray();
 
             Send(allPackage);
