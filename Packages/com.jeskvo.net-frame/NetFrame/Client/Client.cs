@@ -86,11 +86,7 @@ namespace NetFrame.Client
             var dataDataframe = _writer.ToArraySegment();
             var allData = heaterDataframe.Concat(dataDataframe).ToArray();
 
-            var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
-            var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
-            var allPackage = sizeBytes.Concat(allData).ToArray();
-
-            Send(allPackage);
+            Send(allData);
         }
         
         public void Subscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
@@ -244,15 +240,11 @@ namespace NetFrame.Client
             {
                 return;
             }
-            
-            var packageSizeSegment = new ArraySegment<byte>(allBytes, 0, NetFrameConstants.SizeByteCount);
-            var packageSize = Utils.Utils.BytesToIntBigEndian(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
-            var packageBytes = new ArraySegment<byte>(allBytes, 0, packageSize);
-            
+
             var tempIndex = 0;
-            for (var index = NetFrameConstants.SizeByteCount; index < packageSize; index++)
+            for (var index = 0; index < allBytes.Length; index++)
             {
-                var b = packageBytes[index];
+                var b = receiveBytes[index];
 
                 if (b == '\n')
                 {
@@ -261,11 +253,8 @@ namespace NetFrame.Client
                 }
             }
             
-            var headerSegment = new ArraySegment<byte>(packageBytes.ToArray(),
-                NetFrameConstants.SizeByteCount,
-                tempIndex - NetFrameConstants.SizeByteCount - 1);
-            var contentSegment =
-                new ArraySegment<byte>(packageBytes.ToArray(), tempIndex, packageSize - tempIndex);
+            var headerSegment = new ArraySegment<byte>(receiveBytes.ToArray(),0,tempIndex - 1);
+            var contentSegment = new ArraySegment<byte>(receiveBytes.ToArray(), tempIndex, allBytes.Length);
             var headerDataframe = Encoding.UTF8.GetString(headerSegment);
             
             if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
@@ -277,7 +266,7 @@ namespace NetFrame.Client
             
             var targetType = dataframe.GetType();
 
-            _reader = new NetFrameReader(new byte[packageSize]);
+            _reader = new NetFrameReader(new byte[_maxMessageSize]);
             _reader.SetBuffer(contentSegment);
             
             dataframe.Read(_reader);
