@@ -1,15 +1,16 @@
 using System;
 using System.Collections.Generic;
+using NetFrame.Utils;
 
-namespace NetFrame.NewServer
+namespace NetFrame.Queues
 {
-   public class MagnificentSendPipe
+   public class SendQueue
     {
         readonly Queue<ArraySegment<byte>> queue = new Queue<ArraySegment<byte>>();
         
         Pool<byte[]> pool;
         
-        public MagnificentSendPipe(int MaxMessageSize)
+        public SendQueue(int MaxMessageSize)
         {
             pool = new Pool<byte[]>(() => new byte[MaxMessageSize]);
         }
@@ -67,7 +68,7 @@ namespace NetFrame.NewServer
                 {
                     ArraySegment<byte> message = queue.Dequeue();
                     
-                    Utils.IntToBytesBigEndianNonAlloc(message.Count, payload, position);
+                    Utils.Utils.IntToBytesBigEndianNonAlloc(message.Count, payload, position);
                     position += 4;
                     
                     Buffer.BlockCopy(message.Array, message.Offset, payload, position, message.Count);

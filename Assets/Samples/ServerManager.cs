@@ -1,12 +1,11 @@
 using System.Collections.Generic;
 using System.Reflection;
-using NetFrame.NewServer;
 using NetFrame.Server;
 using NetFrame.Utils;
 using Samples.Dataframes;
 using Samples.Dataframes.Collections;
 using UnityEngine;
-using LogType = NetFrame.NewServer.LogType;
+using LogType = NetFrame.Enums.LogType;
 
 namespace Samples
 {

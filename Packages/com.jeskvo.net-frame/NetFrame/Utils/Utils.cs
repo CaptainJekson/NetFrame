@@ -1,4 +1,4 @@
-namespace NetFrame.NewServer
+namespace NetFrame.Utils
 {
     public static class Utils
     {

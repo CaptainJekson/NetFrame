@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+using NetFrame.Enums;
+using NetFrame.Utils;
 
-namespace NetFrame.NewServer
+namespace NetFrame.Queues
 {
-    public class MagnificentReceivePipe
+    public class ReceiveQueue
     {
         struct Entry
         {
@@ -23,7 +24,7 @@ namespace NetFrame.NewServer
         Pool<byte[]> pool;
         Dictionary<int, int> queueCounter = new Dictionary<int, int>();
         
-        public MagnificentReceivePipe(int MaxMessageSize)
+        public ReceiveQueue(int MaxMessageSize)
         {
             pool = new Pool<byte[]>(() => new byte[MaxMessageSize]);
         }

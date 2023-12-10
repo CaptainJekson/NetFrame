@@ -7,11 +7,12 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using NetFrame.Constants;
+using NetFrame.Enums;
+using NetFrame.Queues;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using ThreadPriority = System.Threading.ThreadPriority;
 
-namespace NetFrame.NewServer
+namespace NetFrame.Server
 {
     //TODO остановился изучать там где ListenConnectionClients создаються два потока для отправки и слушания для tcpClient
     public class Server
@@ -26,7 +27,7 @@ namespace NetFrame.NewServer
 
         private TcpListener _tcpListener;
         private Thread _listenerThread;
-        private MagnificentReceivePipe _receivePipe;
+        private ReceiveQueue _receiveQueue;
         
         private readonly ConcurrentDictionary<int, ConnectionState> _clients;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
@@ -34,7 +35,7 @@ namespace NetFrame.NewServer
         private readonly NetFrameWriter _writer;
         private NetFrameReader _reader;
         
-        public int ReceivePipeTotalCount => _receivePipe.TotalCount;
+        public int ReceivePipeTotalCount => _receiveQueue.TotalCount;
         
         private int _clientIdCounter;
         private int _maxClients;
@@ -62,7 +63,7 @@ namespace NetFrame.NewServer
                 return false;
             }
 
-            _receivePipe = new MagnificentReceivePipe(_maxMessageSize);
+            _receiveQueue = new ReceiveQueue(_maxMessageSize);
             _maxClients = maxClients;
             
             LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Start] Starting server on port {port}");
@@ -91,7 +92,7 @@ namespace NetFrame.NewServer
             
             foreach (KeyValuePair<int, ConnectionState> keyValuePair in _clients)
             {
-                TcpClient tcpClient = keyValuePair.Value.tcpClient;
+                TcpClient tcpClient = keyValuePair.Value.TcpClient;
                 try
                 {
                     tcpClient.GetStream().Close();
@@ -159,7 +160,7 @@ namespace NetFrame.NewServer
         
         public int Run(int processLimit, Func<bool> checkEnabled = null)
         {
-            if (_receivePipe == null)
+            if (_receiveQueue == null)
                 return 0;
 
             for (int i = 0; i < processLimit; ++i)
@@ -167,7 +168,7 @@ namespace NetFrame.NewServer
                 if (checkEnabled != null && !checkEnabled())
                     break;
                 
-                if (_receivePipe.TryPeek(out int connectionId, out EventType eventType, out ArraySegment<byte> message))
+                if (_receiveQueue.TryPeek(out int connectionId, out EventType eventType, out ArraySegment<byte> message))
                 {
                     switch (eventType)
                     {
@@ -183,7 +184,7 @@ namespace NetFrame.NewServer
                             break;
                     }
                     
-                    _receivePipe.TryDequeue();
+                    _receiveQueue.TryDequeue();
                 }
                 else
                 {
@@ -191,7 +192,7 @@ namespace NetFrame.NewServer
                 }
             }
             
-            return _receivePipe.TotalCount;
+            return _receiveQueue.TotalCount;
         }
         
         //the client's IP address is sometimes required by the server, for example, for bans
@@ -199,7 +200,7 @@ namespace NetFrame.NewServer
         {
             if (_clients.TryGetValue(connectionId, out ConnectionState connection))
             {
-                return ((IPEndPoint)connection.tcpClient.Client.RemoteEndPoint).Address.ToString();
+                return ((IPEndPoint)connection.TcpClient.Client.RemoteEndPoint).Address.ToString();
             }
             return "";
         }
@@ -209,7 +210,7 @@ namespace NetFrame.NewServer
         {
             if (_clients.TryGetValue(clientId, out ConnectionState connection))
             {
-                connection.tcpClient.Close();
+                connection.TcpClient.Close();
                 LogCall?.Invoke(LogType.Info, "[NetFrameClient.Send] Server.Disconnect connectionId:" + clientId);
                 return true;
             }
@@ -273,7 +274,7 @@ namespace NetFrame.NewServer
                     {
                         try
                         {
-                            ThreadFunctions.SendLoop(connectionId, tcpClient, connection.sendPipe, connection.sendPending);
+                            ThreadFunctions.SendLoop(connectionId, tcpClient, connection.SendQueue, connection.SendPending);
                         }
                         catch (ThreadAbortException)
                         {
@@ -291,7 +292,7 @@ namespace NetFrame.NewServer
                     {
                         try
                         {
-                            ThreadFunctions.ReceiveLoop(connectionId, tcpClient, _maxMessageSize, _receivePipe, _receiveQueueLimit);
+                            ThreadFunctions.ReceiveLoop(connectionId, tcpClient, _maxMessageSize, _receiveQueue, _receiveQueueLimit);
                             sendThread.Interrupt();
                         }
                         catch (Exception exception)
@@ -322,21 +323,21 @@ namespace NetFrame.NewServer
             return typeof(T).Name;
         }
 
-        private bool Send(int connectionId, ArraySegment<byte> message) //TODO
+        private bool Send(int connectionId, ArraySegment<byte> message)
         {
             if (message.Count <= _maxMessageSize)
             {
                 if (_clients.TryGetValue(connectionId, out ConnectionState connection))
                 {
-                    if (connection.sendPipe.Count < _sendQueueLimit)
+                    if (connection.SendQueue.Count < _sendQueueLimit)
                     {
-                        connection.sendPipe.Enqueue(message);
-                        connection.sendPending.Set();
+                        connection.SendQueue.Enqueue(message);
+                        connection.SendPending.Set();
                         return true;
                     }
 
                     LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Server.Send: sendPipe for connection {connectionId} reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting this connection for load balancing.");
-                    connection.tcpClient.Close();
+                    connection.TcpClient.Close();
                     return false;
                 }
                 return false;
@@ -356,7 +357,7 @@ namespace NetFrame.NewServer
             }
             
             var packageSizeSegment = new ArraySegment<byte>(allBytes, 0, NetFrameConstants.SizeByteCount);
-            var packageSize = Utils.BytesToIntBigEndian(packageSizeSegment.ToArray());
+            var packageSize = Utils.Utils.BytesToIntBigEndian(packageSizeSegment.ToArray());
             var packageBytes = new ArraySegment<byte>(allBytes, 0, packageSize);
             
             var tempIndex = 0;

@@ -1,4 +1,4 @@
-namespace NetFrame.NewServer
+namespace NetFrame.Enums
 {
     public enum EventType
     {

@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Net.Sockets;
 
-namespace NetFrame.NewServer
+namespace NetFrame.Utils
 {
     public static class NetworkStreamExtensions
     {

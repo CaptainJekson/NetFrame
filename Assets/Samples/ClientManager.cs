@@ -2,11 +2,10 @@ using System;
 using System.Reflection;
 using NetFrame.Client;
 using NetFrame.Enums;
-using NetFrame.NewServer;
 using NetFrame.Utils;
 using Samples.Dataframes;
 using UnityEngine;
-using LogType = NetFrame.NewServer.LogType;
+using LogType = NetFrame.Enums.LogType;
 using Random = UnityEngine.Random;
 
 namespace Samples

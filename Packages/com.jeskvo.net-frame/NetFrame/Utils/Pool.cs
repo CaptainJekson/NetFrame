@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace NetFrame.NewServer
+namespace NetFrame.Utils
 {
     public class Pool<T>
     {

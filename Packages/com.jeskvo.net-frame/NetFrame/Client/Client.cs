@@ -6,9 +6,11 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using NetFrame.Constants;
+using NetFrame.Enums;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-namespace NetFrame.NewServer
+
+namespace NetFrame.Client
 {
     public class Client
     {
@@ -29,7 +31,7 @@ namespace NetFrame.NewServer
         private bool Connected => _state != null && _state.Connected;
         private bool Connecting => _state != null && _state.Connecting;
         
-        public int ReceivePipeCount => _state != null ? _state.receivePipe.TotalCount : 0;
+        public int ReceivePipeCount => _state != null ? _state.ReceiveQueue.TotalCount : 0;
 
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
@@ -53,15 +55,15 @@ namespace NetFrame.NewServer
             
             _state = new ClientConnectionState(_maxMessageSize);
             _state.Connecting = true;
-            _state.tcpClient.Client = null;
+            _state.TcpClient.Client = null;
             
-            _state.receiveThread = new Thread(() => 
+            _state.ReceiveThread = new Thread(() => 
             {
                 ReceiveThreadFunction(_state, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
             });
             
-            _state.receiveThread.IsBackground = true;
-            _state.receiveThread.Start();
+            _state.ReceiveThread.IsBackground = true;
+            _state.ReceiveThread.Start();
         }
 
         public void Disconnect()
@@ -128,7 +130,7 @@ namespace NetFrame.NewServer
                     break;
                 }
 
-                if (_state.receivePipe.TryPeek(out int _, out EventType eventType, out ArraySegment<byte> message))
+                if (_state.ReceiveQueue.TryPeek(out int _, out EventType eventType, out ArraySegment<byte> message))
                 {
                     switch (eventType)
                     {
@@ -143,7 +145,7 @@ namespace NetFrame.NewServer
                             break;
                     }
                     
-                    _state.receivePipe.TryDequeue();
+                    _state.ReceiveQueue.TryDequeue();
                 }
                 else
                 {
@@ -151,7 +153,7 @@ namespace NetFrame.NewServer
                 }
             }
             
-            return _state.receivePipe.TotalCount;
+            return _state.ReceiveQueue.TotalCount;
         }
         
         private void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int maxMessageSize, 
@@ -160,18 +162,18 @@ namespace NetFrame.NewServer
             Thread sendThread = null;
             try
             {
-                state.tcpClient.Connect(ip, port);
+                state.TcpClient.Connect(ip, port);
                 state.Connecting = false;
                 
-                state.tcpClient.NoDelay = noDelay;
-                state.tcpClient.SendTimeout = sendTimeout;
-                state.tcpClient.ReceiveTimeout = receiveTimeout;
+                state.TcpClient.NoDelay = noDelay;
+                state.TcpClient.SendTimeout = sendTimeout;
+                state.TcpClient.ReceiveTimeout = receiveTimeout;
                 
-                sendThread = new Thread(() => { ThreadFunctions.SendLoop(0, state.tcpClient, state.sendPipe, state.sendPending); });
+                sendThread = new Thread(() => { ThreadFunctions.SendLoop(0, state.TcpClient, state.SendQueue, state.SendPending); });
                 sendThread.IsBackground = true;
                 sendThread.Start();
                 
-                ThreadFunctions.ReceiveLoop(0, state.tcpClient, maxMessageSize, state.receivePipe, receiveQueueLimit);
+                ThreadFunctions.ReceiveLoop(0, state.TcpClient, maxMessageSize, state.ReceiveQueue, receiveQueueLimit);
             }
             catch (SocketException exception)
             {
@@ -198,7 +200,7 @@ namespace NetFrame.NewServer
             sendThread?.Interrupt();
             
             state.Connecting = false;
-            state.tcpClient?.Close();
+            state.TcpClient?.Close();
         }
 
         private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
@@ -212,16 +214,16 @@ namespace NetFrame.NewServer
             {
                 if (message.Count <= _maxMessageSize)
                 {
-                    if (_state.sendPipe.Count < _sendQueueLimit)
+                    if (_state.SendQueue.Count < _sendQueueLimit)
                     {
-                        _state.sendPipe.Enqueue(message);
-                        _state.sendPending.Set();
+                        _state.SendQueue.Enqueue(message);
+                        _state.SendPending.Set();
                         return true;
                     }
                     else
                     {
                         LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
-                        _state.tcpClient.Close();
+                        _state.TcpClient.Close();
                         return false;
                     }
                 }
@@ -244,7 +246,7 @@ namespace NetFrame.NewServer
             }
             
             var packageSizeSegment = new ArraySegment<byte>(allBytes, 0, NetFrameConstants.SizeByteCount);
-            var packageSize = Utils.BytesToIntBigEndian(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
+            var packageSize = Utils.Utils.BytesToIntBigEndian(packageSizeSegment.ToArray()); //todo GetUIntFromByteArray allocate use
             var packageBytes = new ArraySegment<byte>(allBytes, 0, packageSize);
             
             var tempIndex = 0;

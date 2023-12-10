@@ -1,8 +1,10 @@
 using System;
 using System.Net.Sockets;
 using System.Threading;
+using NetFrame.Enums;
+using NetFrame.Queues;
 
-namespace NetFrame.NewServer
+namespace NetFrame.Utils
 {
     public static class ThreadFunctions
     {
@@ -18,12 +20,12 @@ namespace NetFrame.NewServer
                 return false;
             }
         }
-        
-        public static bool ReadMessageBlocking(NetworkStream stream, int MaxMessageSize, byte[] headerBuffer, byte[] payloadBuffer, out int size)
+
+        private static bool ReadMessageBlocking(NetworkStream stream, int maxMessageSize, byte[] headerBuffer, byte[] payloadBuffer, out int size)
         {
             size = 0;
 
-            if (payloadBuffer.Length != 4 + MaxMessageSize)
+            if (payloadBuffer.Length != 4 + maxMessageSize)
             {
                 //TODO 
                 //Log.Error($"[Telepathy] ReadMessageBlocking: payloadBuffer needs to be of size 4 + MaxMessageSize = {4 + MaxMessageSize} instead of {payloadBuffer.Length}");
@@ -32,11 +34,13 @@ namespace NetFrame.NewServer
 
             // read exactly 4 bytes for header (blocking)
             if (!stream.ReadExactly(headerBuffer, 4))
+            {
                 return false;
+            }
             
             size = Utils.BytesToIntBigEndian(headerBuffer);
 
-            if (size > 0 && size <= MaxMessageSize)
+            if (size > 0 && size <= maxMessageSize)
             {
                 return stream.ReadExactly(payloadBuffer, size);
             }
@@ -44,31 +48,29 @@ namespace NetFrame.NewServer
             return false;
         }
 
-        public static void ReceiveLoop(int connectionId, TcpClient client, int MaxMessageSize, MagnificentReceivePipe receivePipe, int QueueLimit)
+        public static void ReceiveLoop(int connectionId, TcpClient client, int maxMessageSize, ReceiveQueue receiveQueue, int queueLimit)
         {
-            // get NetworkStream from client
             NetworkStream stream = client.GetStream();
             
-            byte[] receiveBuffer = new byte[4 + MaxMessageSize];
-
+            byte[] receiveBuffer = new byte[4 + maxMessageSize];
             byte[] headerBuffer = new byte[4];
             
             try
             {
-                receivePipe.Enqueue(connectionId, EventType.Connected, default);
+                receiveQueue.Enqueue(connectionId, EventType.Connected, default);
                 
                 while (true)
                 {
-                    if (!ReadMessageBlocking(stream, MaxMessageSize, headerBuffer, receiveBuffer, out int size))
+                    if (!ReadMessageBlocking(stream, maxMessageSize, headerBuffer, receiveBuffer, out int size))
                     {
                         break;
                     }
 
                     ArraySegment<byte> message = new ArraySegment<byte>(receiveBuffer, 0, size);
                     
-                    receivePipe.Enqueue(connectionId, EventType.Data, message);
+                    receiveQueue.Enqueue(connectionId, EventType.Data, message);
 
-                    if (receivePipe.Count(connectionId) >= QueueLimit)
+                    if (receiveQueue.Count(connectionId) >= queueLimit)
                     {
                         //TODO
                         //Log.Warning($"[Telepathy] ReceivePipe reached limit of {QueueLimit} for connectionId {connectionId}. This can happen if network messages come in way faster than we manage to process them. Disconnecting this connection for load balancing.");
@@ -84,11 +86,11 @@ namespace NetFrame.NewServer
             {
                 stream.Close();
                 client.Close();
-                receivePipe.Enqueue(connectionId, EventType.Disconnected, default);
+                receiveQueue.Enqueue(connectionId, EventType.Disconnected, default);
             }
         }
         
-        public static void SendLoop(int connectionId, TcpClient client, MagnificentSendPipe sendPipe, ManualResetEvent sendPending)
+        public static void SendLoop(int connectionId, TcpClient client, SendQueue sendQueue, ManualResetEvent sendPending)
         {
             NetworkStream stream = client.GetStream();
 
@@ -100,7 +102,7 @@ namespace NetFrame.NewServer
                 {
                     sendPending.Reset();
 
-                    if (sendPipe.DequeueAndSerializeAll(ref payload, out int packetSize))
+                    if (sendQueue.DequeueAndSerializeAll(ref payload, out int packetSize))
                     {
                         if (!SendMessagesBlocking(stream, payload, packetSize))
                         {
@@ -121,7 +123,7 @@ namespace NetFrame.NewServer
             }
             catch (Exception exception)
             {
-                //Log.Info("[Telepathy] SendLoop Exception: connectionId=" + connectionId + " reason: " + exception); //TODO 
+                //Log.Info("[ThreadFunction.SendLoop] SendLoop Exception: connectionId=" + connectionId + " reason: " + exception); //TODO 
             }
             finally
             {
