@@ -254,7 +254,7 @@ namespace NetFrame.Client
             }
             
             var headerSegment = new ArraySegment<byte>(receiveBytes.ToArray(),0,tempIndex - 1);
-            var contentSegment = new ArraySegment<byte>(receiveBytes.ToArray(), tempIndex, allBytes.Length);
+            var contentSegment = new ArraySegment<byte>(receiveBytes.ToArray(), tempIndex, receiveBytes.Count - tempIndex);
             var headerDataframe = Encoding.UTF8.GetString(headerSegment);
             
             if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))

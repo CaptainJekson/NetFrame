@@ -6,11 +6,12 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using NetFrame.Constants;
-using NetFrame.Enums;
 using NetFrame.Queues;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using EventType = NetFrame.Enums.EventType;
+using LogType = NetFrame.Enums.LogType;
+using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.Server
 {
@@ -365,7 +366,7 @@ namespace NetFrame.Server
             }
             
             var headerSegment = new ArraySegment<byte>(receiveBytes.ToArray(),0,tempIndex - 1);
-            var contentSegment = new ArraySegment<byte>(receiveBytes.ToArray(), tempIndex, allBytes.Length);
+            var contentSegment = new ArraySegment<byte>(receiveBytes.ToArray(), tempIndex, receiveBytes.Count - tempIndex);
             var headerDataframe = Encoding.UTF8.GetString(headerSegment);
             
             if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
