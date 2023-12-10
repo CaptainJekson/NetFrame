@@ -13,7 +13,7 @@ using NetFrame.WriteAndRead;
 
 namespace NetFrame.Client
 {
-    public class NetFrameClient
+    public class OldNetFrameClient
     {
         private readonly NetFrameByteConverter _byteConverter;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
@@ -42,7 +42,7 @@ namespace NetFrame.Client
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
 
-        public NetFrameClient()
+        public OldNetFrameClient()
         {
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
             _byteConverter = new NetFrameByteConverter();

@@ -12,38 +12,38 @@ namespace Samples
 {
     public class ClientManager : MonoBehaviour
     {
-        private Client _client;
+        private NetFrameClient _netFrameClient;
 
         private void Start()
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
-            _client = new Client(50000);
+            _netFrameClient = new NetFrameClient(50000);
             
-            _client.Connect("127.0.0.1", 8080);
+            _netFrameClient.Connect("127.0.0.1", 8080);
 
-            _client.ConnectionSuccessful += OnConnectionSuccessful;
-            _client.LogCall += OnLog;
-            _client.Disconnected += OnDisconnected;
+            _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
+            _netFrameClient.LogCall += OnLog;
+            _netFrameClient.Disconnected += OnDisconnected;
             
-            _client.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
-            _client.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
-            _client.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
-            _client.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+            _netFrameClient.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
+            _netFrameClient.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
+            _netFrameClient.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
+            _netFrameClient.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
         }
         
         private void Update()
         {
-            _client.Run(100);
+            _netFrameClient.Run(100);
             
             if (Input.GetKeyDown(KeyCode.D)) //Disconnect
             {
-                _client.Disconnect();
+                _netFrameClient.Disconnect();
             }
 
             if (Input.GetKeyDown(KeyCode.C)) //Reconnection
             {
-                _client.Connect("127.0.0.1", 8080);
+                _netFrameClient.Connect("127.0.0.1", 8080);
             }
             
             if (Input.GetKeyDown(KeyCode.S)) //Send
@@ -54,7 +54,7 @@ namespace Samples
                     Value2 = (byte) Random.Range(0,255),
                     Value3 = (byte) Random.Range(0,255),
                 };
-                _client.Send(ref testByteDataframe);
+                _netFrameClient.Send(ref testByteDataframe);
             }
         }
 
@@ -115,19 +115,19 @@ namespace Samples
 
         private void OnDestroy()
         {
-            _client.ConnectionSuccessful -= OnConnectionSuccessful;
-            _client.LogCall -= OnLog;
-            _client.Disconnected -= OnDisconnected;
+            _netFrameClient.ConnectionSuccessful -= OnConnectionSuccessful;
+            _netFrameClient.LogCall -= OnLog;
+            _netFrameClient.Disconnected -= OnDisconnected;
             
-            _client.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
-            _client.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
-            _client.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
-            _client.Unsubscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+            _netFrameClient.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
+            _netFrameClient.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
+            _netFrameClient.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
+            _netFrameClient.Unsubscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
         }
 
         private void OnApplicationQuit()
         {
-            _client.Disconnect();
+            _netFrameClient.Disconnect();
         }
     }
 }

@@ -5,14 +5,13 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using NetFrame.Constants;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
 
 namespace NetFrame.Client
 {
-    public class Client
+    public class NetFrameClient
     {
         private readonly int _sendQueueLimit = 10000;
         private readonly int _receiveQueueLimit = 10000;
@@ -37,7 +36,7 @@ namespace NetFrame.Client
         public event Action Disconnected;
         public event Action<LogType, string> LogCall;
 
-        public Client(int maxMessageSize)
+        public NetFrameClient(int maxMessageSize)
         {
             _maxMessageSize = maxMessageSize;
             _writer = new NetFrameWriter();

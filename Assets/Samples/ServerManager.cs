@@ -11,26 +11,26 @@ namespace Samples
 {
     public class ServerManager : MonoBehaviour
     {
-        private Server _server;
+        private NetFrameServer _netFrameServer;
         
         private void Start()
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
-            _server = new Server(50000);
+            _netFrameServer = new NetFrameServer(50000);
             
-            _server.Start(8080, 10);
+            _netFrameServer.Start(8080, 10);
 
-            _server.ClientConnection += OnClientConnection;
-            _server.ClientDisconnect += OnClientDisconnect;
-            _server.LogCall += OnLog;
+            _netFrameServer.ClientConnection += OnClientConnection;
+            _netFrameServer.ClientDisconnect += OnClientDisconnect;
+            _netFrameServer.LogCall += OnLog;
             
-            _server.Subscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
-            _server.Subscribe<TestNicknameDataframe>(TestNicknameDataframeHandler);
+            _netFrameServer.Subscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
+            _netFrameServer.Subscribe<TestNicknameDataframe>(TestNicknameDataframeHandler);
         }
 
         private void Update()
         {
-            _server.Run(100);
+            _netFrameServer.Run(100);
             
             if (Input.GetKeyDown(KeyCode.S))
             {
@@ -39,7 +39,7 @@ namespace Samples
                     Name = "Vasya",
                     Age = 27,
                 };
-                _server.SendAll(ref dataframe);
+                _netFrameServer.SendAll(ref dataframe);
             }
 
             if (Input.GetKeyDown(KeyCode.B))
@@ -84,7 +84,7 @@ namespace Samples
                 {
                     Users = users,
                 };
-                _server.SendAll(ref dataframeCollection);
+                _netFrameServer.SendAll(ref dataframeCollection);
             }
         }
         
@@ -126,16 +126,16 @@ namespace Samples
 
         private void OnDestroy()
         {
-            _server.ClientConnection -= OnClientConnection;
-            _server.ClientDisconnect -= OnClientDisconnect;
-            _server.LogCall -= OnLog;
+            _netFrameServer.ClientConnection -= OnClientConnection;
+            _netFrameServer.ClientDisconnect -= OnClientDisconnect;
+            _netFrameServer.LogCall -= OnLog;
             
-            _server.Unsubscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
+            _netFrameServer.Unsubscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
         }
 
         private void OnApplicationQuit()
         {
-            _server.Stop();
+            _netFrameServer.Stop();
         }
     }
 }

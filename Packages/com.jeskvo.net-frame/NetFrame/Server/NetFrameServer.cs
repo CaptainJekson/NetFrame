@@ -9,13 +9,11 @@ using System.Threading;
 using NetFrame.Queues;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using EventType = NetFrame.Enums.EventType;
-using LogType = NetFrame.Enums.LogType;
-using ThreadPriority = System.Threading.ThreadPriority;
+using NetFrame.Enums;
 
 namespace NetFrame.Server
 {
-    public class Server
+    public class NetFrameServer
     {
         private readonly int _sendTimeout = 5000;
         private readonly int _sendQueueLimit = 10000;
@@ -46,7 +44,7 @@ namespace NetFrame.Server
         public event Action<int> ClientDisconnect;
         public event Action<LogType, string> LogCall;
         
-        public Server(int maxMessageSize)
+        public NetFrameServer(int maxMessageSize)
         {
             _maxMessageSize = maxMessageSize;
 
@@ -56,7 +54,7 @@ namespace NetFrame.Server
             _writer = new NetFrameWriter();
         }
         
-        public bool Start(int port, int maxClients) //todo сделать функционал с maxClients
+        public bool Start(int port, int maxClients)
         {
             if (Active)
             {
@@ -360,7 +358,7 @@ namespace NetFrame.Server
 
                 if (b == '\n')
                 {
-                    tempIndex = index + 1; //todo kek
+                    tempIndex = index + 1;
                     break;
                 }
             }

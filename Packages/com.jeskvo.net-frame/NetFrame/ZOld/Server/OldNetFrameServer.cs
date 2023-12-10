@@ -13,7 +13,7 @@ using NetFrame.WriteAndRead;
 
 namespace NetFrame.Server
 {
-    public class NetFrameServer
+    public class OldNetFrameServer
     {
         private TcpListener _tcpServer;
         private int _maxClient;
@@ -31,7 +31,7 @@ namespace NetFrame.Server
         public event Action<int> ClientConnection;
         public event Action<int> ClientDisconnect;
 
-        public NetFrameServer()
+        public OldNetFrameServer()
         {
             _byteConverter = new NetFrameByteConverter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
