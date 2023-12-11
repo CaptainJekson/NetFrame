@@ -56,6 +56,11 @@ namespace Samples
                 };
                 _netFrameClient.Send(ref testByteDataframe);
             }
+
+            if (Input.GetKeyDown(KeyCode.U))
+            {
+                _netFrameClient.SendTestUdp("Hello from UDP!!!");
+            }
         }
 
         private void OnDisconnected()

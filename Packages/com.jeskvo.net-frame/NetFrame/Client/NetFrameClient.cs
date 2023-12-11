@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -20,17 +21,16 @@ namespace NetFrame.Client
         private readonly int _sendTimeout = 5000;
         private readonly int _receiveTimeout = 0;
         
-        private ClientConnectionState _state;
-        
-        private readonly NetFrameByteConverter _byteConverter;
+        private ClientConnectionState _clientConnectionState;
+        private UdpClient _udpClient; //todo dev переместить _clientConnectionState ????
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         private readonly NetFrameWriter _writer;
         private NetFrameReader _reader;
 
-        private bool Connected => _state != null && _state.Connected;
-        private bool Connecting => _state != null && _state.Connecting;
+        private bool Connected => _clientConnectionState != null && _clientConnectionState.Connected;
+        private bool Connecting => _clientConnectionState != null && _clientConnectionState.Connecting;
         
-        public int ReceivePipeCount => _state != null ? _state.ReceiveQueue.TotalCount : 0;
+        public int ReceivePipeCount => _clientConnectionState != null ? _clientConnectionState.ReceiveQueue.TotalCount : 0;
 
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
@@ -40,7 +40,6 @@ namespace NetFrame.Client
         {
             _maxMessageSize = maxMessageSize;
             _writer = new NetFrameWriter();
-            _byteConverter = new NetFrameByteConverter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
         
@@ -52,24 +51,34 @@ namespace NetFrame.Client
                 return;
             }
             
-            _state = new ClientConnectionState(_maxMessageSize);
-            _state.Connecting = true;
-            _state.TcpClient.Client = null;
+            _clientConnectionState = new ClientConnectionState(_maxMessageSize);
+            _clientConnectionState.Connecting = true;
+            _clientConnectionState.TcpClient.Client = null;
             
-            _state.ReceiveThread = new Thread(() => 
+            _clientConnectionState.ReceiveThread = new Thread(() => 
             {
-                ReceiveThreadFunction(_state, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
+                ReceiveThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
             });
             
-            _state.ReceiveThread.IsBackground = true;
-            _state.ReceiveThread.Start();
+            _clientConnectionState.ReceiveThread.IsBackground = true;
+            _clientConnectionState.ReceiveThread.Start();
+        }
+        
+        public void SendTestUdp(string message) //todo dev
+        {
+            byte[] sendBytes = System.Text.Encoding.UTF8.GetBytes(message);
+
+            // Send the message to the server
+            var remoteEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 8080); //todo сделать все это по нормальному
+
+            _udpClient.Send(sendBytes, sendBytes.Length, remoteEndPoint);
         }
 
         public void Disconnect()
         {
             if (Connecting || Connected)
             {
-                _state.Dispose();
+                _clientConnectionState.Dispose();
             }
         }
         
@@ -113,7 +122,7 @@ namespace NetFrame.Client
         
         public int Run(int processLimit, Func<bool> checkEnabled = null)
         {
-            if (_state == null)
+            if (_clientConnectionState == null)
             {
                 return 0;
             }
@@ -125,7 +134,7 @@ namespace NetFrame.Client
                     break;
                 }
 
-                if (_state.ReceiveQueue.TryPeek(out int _, out EventType eventType, out ArraySegment<byte> message))
+                if (_clientConnectionState.ReceiveQueue.TryPeek(out int _, out EventType eventType, out ArraySegment<byte> message))
                 {
                     switch (eventType)
                     {
@@ -140,7 +149,7 @@ namespace NetFrame.Client
                             break;
                     }
                     
-                    _state.ReceiveQueue.TryDequeue();
+                    _clientConnectionState.ReceiveQueue.TryDequeue();
                 }
                 else
                 {
@@ -148,7 +157,7 @@ namespace NetFrame.Client
                 }
             }
             
-            return _state.ReceiveQueue.TotalCount;
+            return _clientConnectionState.ReceiveQueue.TotalCount;
         }
         
         private void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int maxMessageSize, 
@@ -209,16 +218,16 @@ namespace NetFrame.Client
             {
                 if (message.Count <= _maxMessageSize)
                 {
-                    if (_state.SendQueue.Count < _sendQueueLimit)
+                    if (_clientConnectionState.SendQueue.Count < _sendQueueLimit)
                     {
-                        _state.SendQueue.Enqueue(message);
-                        _state.SendPending.Set();
+                        _clientConnectionState.SendQueue.Enqueue(message);
+                        _clientConnectionState.SendPending.Set();
                         return true;
                     }
                     else
                     {
                         LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
-                        _state.TcpClient.Close();
+                        _clientConnectionState.TcpClient.Close();
                         return false;
                     }
                 }

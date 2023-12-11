@@ -9,7 +9,10 @@ using System.Threading;
 using NetFrame.Queues;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using NetFrame.Enums;
+using UnityEngine;
+using EventType = NetFrame.Enums.EventType;
+using LogType = NetFrame.Enums.LogType;
+using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.Server
 {
@@ -23,13 +26,13 @@ namespace NetFrame.Server
         private readonly bool _noDelay = true;
         private readonly int _maxMessageSize;
 
+        private UdpClient _udpServer;
         private TcpListener _tcpListener;
         private Thread _listenerThread;
         private ReceiveQueue _receiveQueue;
         
         private readonly ConcurrentDictionary<int, ConnectionState> _clients;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
-        private readonly NetFrameByteConverter _byteConverter;
         private readonly NetFrameWriter _writer;
         private NetFrameReader _reader;
         
@@ -50,7 +53,6 @@ namespace NetFrame.Server
 
             _clients = new ConcurrentDictionary<int, ConnectionState>();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
-            _byteConverter = new NetFrameByteConverter();
             _writer = new NetFrameWriter();
         }
         
@@ -74,7 +76,28 @@ namespace NetFrame.Server
             _listenerThread.IsBackground = true;
             _listenerThread.Priority = ThreadPriority.BelowNormal;
             _listenerThread.Start();
+            
+            //todo dev
+            _udpServer = new UdpClient(port);
+            // Start receiving data asynchronously
+            _udpServer.BeginReceive(ReceiveDataUpdTest, null);
+            
+            
             return true;
+        }
+
+        //todo dev
+        private void ReceiveDataUpdTest(IAsyncResult result)
+        {
+            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0); // Get the actual client endpoint
+
+            byte[] receivedBytes = _udpServer.EndReceive(result, ref remoteEndPoint);
+            Debug.LogError($"end point info: {remoteEndPoint.ToString()}");
+            
+            string receivedMessage = Encoding.UTF8.GetString(receivedBytes);
+            Debug.LogError($"message from client upd{remoteEndPoint.ToString()}");
+            
+            _udpServer.BeginReceive(ReceiveDataUpdTest, null);
         }
 
         public void Stop()
@@ -198,6 +221,14 @@ namespace NetFrame.Server
                 return ((IPEndPoint)connection.TcpClient.Client.RemoteEndPoint).Address.ToString();
             }
             return "";
+        }
+
+        public void ShowRemoteEndPoint(int connectionId) //todo test
+        {
+            if (_clients.TryGetValue(connectionId, out ConnectionState connection))
+            {
+                Debug.LogError($"end point info: {connection.TcpClient.Client.RemoteEndPoint}");
+            }
         }
 
         // disconnect (kick) a client
@@ -389,5 +420,8 @@ namespace NetFrame.Server
                 }
             }
         }
+        
+        //todo UPD dev
+        
     }
 }
