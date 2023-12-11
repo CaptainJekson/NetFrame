@@ -41,6 +41,8 @@ namespace NetFrame.Client
             _maxMessageSize = maxMessageSize;
             _writer = new NetFrameWriter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
+
+            _udpClient = new UdpClient(); //todo dev
         }
         
         public void Connect(string ip, int port)
