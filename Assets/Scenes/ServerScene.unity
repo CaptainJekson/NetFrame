@@ -154,7 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 4
-  frequencySend: 30
+  frequencySend: 60
 --- !u!212 &144557570
 SpriteRenderer:
   m_ObjectHideFlags: 0

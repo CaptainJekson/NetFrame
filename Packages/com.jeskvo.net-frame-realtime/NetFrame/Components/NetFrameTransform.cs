@@ -42,9 +42,28 @@ namespace NetFrame.Components
                     out INetworkDataframeTransform fromSnapshot,
                     out INetworkDataframeTransform toSnapshot,
                     out double time);
-                
-                transform.position = Vector3.LerpUnclamped(fromSnapshot.Position, toSnapshot.Position, (float)time);
-                transform.rotation = Quaternion.SlerpUnclamped(fromSnapshot.Rotation, toSnapshot.Rotation, (float)time);
+
+                if (positionInterpolate)
+                {
+                    transform.position = Vector3.LerpUnclamped(fromSnapshot.Position, toSnapshot.Position, (float)time);
+                }
+                else
+                {
+                    var snap = _bufferSnapshots.Values[0];
+                    transform.position = snap.Position;
+                    _bufferSnapshots.RemoveAt(0);
+                }
+
+                if (rotationInterpolate)
+                {
+                    transform.rotation = Quaternion.SlerpUnclamped(fromSnapshot.Rotation, toSnapshot.Rotation, (float)time);
+                }
+                else
+                {
+                    var snap = _bufferSnapshots.Values[0];
+                    transform.rotation = snap.Rotation;
+                    _bufferSnapshots.RemoveAt(0);
+                }
             }
         }
         
