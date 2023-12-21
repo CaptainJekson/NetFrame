@@ -32,6 +32,9 @@ namespace NetFrame.Components
 
         private void Awake()
         {
+            snapshotSettings = new SnapshotInterpolationSettings();
+            _bufferSnapshots = new SortedList<double, INetworkDataframeTransform>();
+            
             _driftEma = new ExponentialMovingAverage(frequencySend * snapshotSettings.driftEmaDuration);
             _deliveryTimeEma = new ExponentialMovingAverage(frequencySend * snapshotSettings.deliveryTimeEmaDuration);
         }

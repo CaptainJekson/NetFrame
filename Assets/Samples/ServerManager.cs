@@ -38,7 +38,7 @@ namespace Samples
         {
             _netFrameServer.Run(100);
             
-            if (Input.GetKeyDown(KeyCode.S))
+            if (Input.GetKeyDown(KeyCode.T))
             {
                 var dataframe = new TestStringIntNetworkDataframe
                 {
@@ -48,7 +48,7 @@ namespace Samples
                 _netFrameServer.SendAll(ref dataframe);
             }
 
-            if (Input.GetKeyDown(KeyCode.B))
+            if (Input.GetKeyDown(KeyCode.Y))
             {
                 var users = new List<UserNetworkModel>
                 {
