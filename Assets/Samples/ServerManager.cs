@@ -98,7 +98,7 @@ namespace Samples
         {
             Debug.Log($"client connected Id = {id}");
             
-            _netFrameServer.ShowRemoteEndPoint(id); //todo test
+            //_netFrameServer.ShowRemoteEndPoint(id); //todo test
         }
         
         private void OnClientDisconnect(int id)

@@ -4,7 +4,7 @@
 
 using System;
 
-namespace NetFrame.Interpolation
+namespace NetFrame.Utils
 {
     public struct ExponentialMovingAverage
     {

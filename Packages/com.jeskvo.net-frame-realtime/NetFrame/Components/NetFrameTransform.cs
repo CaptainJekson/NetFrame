@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Mirror;
 using NetFrame.Interpolation;
 using NetFrame.Utils;
 using UnityEngine;
@@ -9,34 +8,22 @@ namespace NetFrame.Components
     public class NetFrameTransform : MonoBehaviour
     {
         [SerializeField] private Transform transform;
-        
-        [Header("Times")] 
-        [SerializeField] private int frequencySend = 30; //частота отправки
-        
-        [Header("Snapshot Interpolation settings")] //todo надо вытащить в другое место
-        [SerializeField] private SnapshotInterpolationSettings snapshotSettings = new SnapshotInterpolationSettings();
-        
-        private float IntervalSend => 1.0f / frequencySend; //интервал отправки
-        
+
+        [SerializeField] private bool positionInterpolate = true;
+        [SerializeField] private bool rotationInterpolate = true;
+
         private SortedList<double, INetworkDataframeTransform> _bufferSnapshots;
         
-        private double BufferTime => IntervalSend * snapshotSettings.bufferTimeMultiplier;
+        private double BufferTime => NetFrameClientSettings.Instance.IntervalSend * NetFrameClientSettings.Instance.bufferTimeMultiplier;
         
         private float _lastSendTime;
         
         private double _localTimeline;
         private double _localTimescale = 1;
-        
-        private ExponentialMovingAverage _driftEma;
-        private ExponentialMovingAverage _deliveryTimeEma;
 
         private void Awake()
         {
-            snapshotSettings = new SnapshotInterpolationSettings();
             _bufferSnapshots = new SortedList<double, INetworkDataframeTransform>();
-            
-            _driftEma = new ExponentialMovingAverage(frequencySend * snapshotSettings.driftEmaDuration);
-            _deliveryTimeEma = new ExponentialMovingAverage(frequencySend * snapshotSettings.deliveryTimeEmaDuration);
         }
 
         private void Update()
@@ -55,8 +42,7 @@ namespace NetFrame.Components
                     out INetworkDataframeTransform fromSnapshot,
                     out INetworkDataframeTransform toSnapshot,
                     out double time);
-
-                // Выполнить интерполяцию
+                
                 transform.position = Vector3.LerpUnclamped(fromSnapshot.Position, toSnapshot.Position, (float)time);
                 transform.rotation = Quaternion.SlerpUnclamped(fromSnapshot.Rotation, toSnapshot.Rotation, (float)time);
             }
@@ -65,20 +51,34 @@ namespace NetFrame.Components
         public void AddNetworkDataframeTransform(INetworkDataframeTransform dataframeSnapshots)
         {
             dataframeSnapshots.LocalTime = NetworkTime.LocalTime;
+
+            if (NetFrameClientSettings.Instance == null) //todo костыль!!!
+            {
+                return;
+            }
+
+            if (NetFrameClientSettings.Instance.dynamicAdjustment)
+            {
+                NetFrameClientSettings.Instance.bufferTimeMultiplier = SnapshotInterpolation.DynamicAdjustment(
+                    NetFrameClientSettings.Instance.IntervalSend,
+                    NetFrameClientSettings.Instance.DeliveryTimeEma.StandardDeviation,
+                    NetFrameClientSettings.Instance.dynamicAdjustmentTolerance
+                );
+            }
             
             SnapshotInterpolation.InsertAndAdjust(
                 _bufferSnapshots,
                 dataframeSnapshots,
                 ref _localTimeline,
                 ref _localTimescale,
-                IntervalSend,
+                NetFrameClientSettings.Instance.IntervalSend,
                 BufferTime,
-                snapshotSettings.catchupSpeed,
-                snapshotSettings.slowdownSpeed,
-                ref _driftEma,
-                snapshotSettings.catchupNegativeThreshold,
-                snapshotSettings.catchupPositiveThreshold,
-                ref _deliveryTimeEma);
+                NetFrameClientSettings.Instance.catchupSpeed,
+                NetFrameClientSettings.Instance.slowdownSpeed,
+                ref NetFrameClientSettings.Instance.DriftEma,
+                NetFrameClientSettings.Instance.catchupNegativeThreshold,
+                NetFrameClientSettings.Instance.catchupPositiveThreshold,
+                ref NetFrameClientSettings.Instance.DeliveryTimeEma);
         }
     }
 }

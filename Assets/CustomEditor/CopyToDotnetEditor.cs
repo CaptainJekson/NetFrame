@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Diagnostics;
 using UnityEditor;
 using UnityEngine;
@@ -21,3 +22,4 @@ namespace CustomEditor
         }
     }
 }
+#endif

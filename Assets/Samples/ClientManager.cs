@@ -1,4 +1,4 @@
-using System;
+using System.Collections;
 using System.Reflection;
 using NetFrame.Client;
 using NetFrame.Enums;
@@ -13,6 +13,8 @@ namespace Samples
 {
     public class ClientManager : MonoBehaviour
     {
+        private string _ipAddress = "192.168.31.103"; //"127.0.0.1"
+        
         public static ClientManager Instance;
         
         [SerializeField] private Player player;
@@ -25,8 +27,10 @@ namespace Samples
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
             _netFrameClient = new NetFrameClient(50000);
-            
-            _netFrameClient.Connect("127.0.0.1", 8080);
+
+
+            StartCoroutine(Delay()); //todo for build test
+            //_netFrameClient.Connect(_ipAddress, 8080);
 
             _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
             _netFrameClient.LogCall += OnLog;
@@ -39,21 +43,27 @@ namespace Samples
             _netFrameClient.Subscribe<PlayerMoveTransformDataframe>(PlayerMoveTransformDataframeHandler);
         }
 
+        private IEnumerator Delay()
+        {
+            yield return new WaitForSeconds(10.0f);
+            _netFrameClient.Connect(_ipAddress, 8080);
+        }
+
         private void Update()
         {
             _netFrameClient.Run(100);
             
-            if (Input.GetKeyDown(KeyCode.D)) //Disconnect
+            if (Input.GetKeyDown(KeyCode.E)) //Disconnect
             {
                 _netFrameClient.Disconnect();
             }
 
-            if (Input.GetKeyDown(KeyCode.C)) //Reconnection
+            if (Input.GetKeyDown(KeyCode.R)) //Reconnection
             {
-                _netFrameClient.Connect("127.0.0.1", 8080);
+                _netFrameClient.Connect(_ipAddress, 8080);
             }
             
-            if (Input.GetKeyDown(KeyCode.S)) //Send
+            if (Input.GetKeyDown(KeyCode.T)) //Send
             {
                 var testByteDataframe = new TestByteNetworkDataframe
                 {

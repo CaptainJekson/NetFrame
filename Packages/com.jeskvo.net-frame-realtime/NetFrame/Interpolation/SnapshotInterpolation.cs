@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using NetFrame.Utils;
 
 namespace NetFrame.Interpolation
 {

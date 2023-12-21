@@ -1,14 +1,19 @@
-// snapshot interpolation settings struct.
-// can easily be exposed in Unity inspectors.
-using System;
+using NetFrame.Utils;
 using UnityEngine;
 
-namespace Mirror
+namespace NetFrame.Components
 {
-    // class so we can define defaults easily
-    [Serializable]
-    public class SnapshotInterpolationSettings
+    public class NetFrameClientSettings : MonoBehaviour
     {
+        public static NetFrameClientSettings Instance;
+        
+        [Header("Frequency")] 
+        [SerializeField] public int frequencySend = 30;
+        
+        [HideInInspector] public float IntervalSend => 1.0f / frequencySend;
+        [HideInInspector] public ExponentialMovingAverage DriftEma;
+        [HideInInspector] public ExponentialMovingAverage DeliveryTimeEma;
+        
         // decrease bufferTime at runtime to see the catchup effect.
         // increase to see slowdown.
         // 'double' so we can have very precise dynamic adjustment without rounding
@@ -62,7 +67,15 @@ namespace Mirror
         public float dynamicAdjustmentTolerance = 1; // 1 is realistically just fine, 2 is very very safe even for 20% jitter. can be half a frame too. (see above comments)
 
         [Tooltip("Dynamic adjustment is computed over n-second exponential moving average standard deviation.")]
-        public int deliveryTimeEmaDuration = 2;   // 1-2s recommended to capture average delivery time
-
+        public int deliveryTimeEmaDuration = 2;   // 1-2s recommended to capture average delivery time 
+        
+        private void Awake()
+        {
+            Instance = this;
+            
+            Debug.LogError(Instance == null);
+            DriftEma = new ExponentialMovingAverage(frequencySend * driftEmaDuration);
+            DeliveryTimeEma = new ExponentialMovingAverage(frequencySend * deliveryTimeEmaDuration);
+        }
     }
 }

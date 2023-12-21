@@ -2,7 +2,7 @@
 
 using System.Runtime.CompilerServices;
 
-namespace NetFrame.Interpolation
+namespace NetFrame.Utils
 {
     public static class Mathd
     {

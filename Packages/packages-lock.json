@@ -10,7 +10,9 @@
       "version": "file:com.jeskvo.net-frame-realtime",
       "depth": 0,
       "source": "embedded",
-      "dependencies": {}
+      "dependencies": {
+        "com.jeskvo.net-frame": "1.1.2"
+      }
     },
     "com.unity.2d.animation": {
       "version": "9.0.3",

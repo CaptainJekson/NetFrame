@@ -123,6 +123,17 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!114 &456025844 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3952084134621964224, guid: a0147c8ff108149f5bad71e501263907, type: 3}
+  m_PrefabInstance: {fileID: 2084579487769350303}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58eeb48202dc49bca6f67a32db92186d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -292,6 +303,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1433562860}
+  - component: {fileID: 1433562862}
   - component: {fileID: 1433562861}
   m_Layer: 0
   m_Name: ClientManager
@@ -327,7 +339,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 361418cc2a3db4e9ca84da6b308959e3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 0}
+  player: {fileID: 456025844}
+--- !u!114 &1433562862
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1433562859}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 497498211be740279478082d09b3c46a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bufferTimeMultiplier: 2
+  catchupNegativeThreshold: -1
+  catchupPositiveThreshold: 1
+  catchupSpeed: 0.019999999552965164
+  slowdownSpeed: 0.03999999910593033
+  driftEmaDuration: 1
+  dynamicAdjustment: 1
+  dynamicAdjustmentTolerance: 1
+  deliveryTimeEmaDuration: 2
 --- !u!1 &2034511087
 GameObject:
   m_ObjectHideFlags: 0
