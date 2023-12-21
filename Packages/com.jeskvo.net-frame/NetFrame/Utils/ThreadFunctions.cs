@@ -57,7 +57,7 @@ namespace NetFrame.Utils
             
             try
             {
-                receiveQueue.Enqueue(connectionId, EventType.Connected, default);
+                receiveQueue.Enqueue(connectionId, NetworkEventType.Connected, default);
                 
                 while (true)
                 {
@@ -68,7 +68,7 @@ namespace NetFrame.Utils
 
                     ArraySegment<byte> message = new ArraySegment<byte>(receiveBuffer, 0, size);
                     
-                    receiveQueue.Enqueue(connectionId, EventType.Data, message);
+                    receiveQueue.Enqueue(connectionId, NetworkEventType.Data, message);
 
                     if (receiveQueue.Count(connectionId) >= queueLimit)
                     {
@@ -86,7 +86,7 @@ namespace NetFrame.Utils
             {
                 stream.Close();
                 client.Close();
-                receiveQueue.Enqueue(connectionId, EventType.Disconnected, default);
+                receiveQueue.Enqueue(connectionId, NetworkEventType.Disconnected, default);
             }
         }
         

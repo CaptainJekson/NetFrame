@@ -1,6 +1,6 @@
 namespace NetFrame.Enums
 {
-    public enum LogType
+    public enum NetworkLogType
     {
         Info,
         Warning,

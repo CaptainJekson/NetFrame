@@ -6,12 +6,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using NetFrame.Enums;
 using NetFrame.Queues;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
 using UnityEngine;
-using EventType = NetFrame.Enums.EventType;
-using LogType = NetFrame.Enums.LogType;
 using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.Server
@@ -45,7 +44,7 @@ namespace NetFrame.Server
         
         public event Action<int> ClientConnection;
         public event Action<int> ClientDisconnect;
-        public event Action<LogType, string> LogCall;
+        public event Action<NetworkLogType, string> LogCall;
         
         public NetFrameServer(int maxMessageSize)
         {
@@ -66,7 +65,7 @@ namespace NetFrame.Server
             _receiveQueue = new ReceiveQueue(_maxMessageSize);
             _maxClients = maxClients;
             
-            LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Start] Starting server on port {port}");
+            LogCall?.Invoke(NetworkLogType.Info, $"[NetFrameServer.Start] Starting server on port {port}");
 
             _listenerThread = new Thread(() =>
             {
@@ -99,19 +98,56 @@ namespace NetFrame.Server
             
             _udpServer.BeginReceive(ReceiveDataUpdTest, null);
         }
+        
+        public int Run(int processLimit, Func<bool> checkEnabled = null)
+        {
+            if (_receiveQueue == null)
+                return 0;
+
+            for (int i = 0; i < processLimit; ++i)
+            {
+                if (checkEnabled != null && !checkEnabled())
+                    break;
+                
+                if (_receiveQueue.TryPeek(out int connectionId, out NetworkEventType eventType, out ArraySegment<byte> message))
+                {
+                    switch (eventType)
+                    {
+                        case NetworkEventType.Connected:
+                            ClientConnection?.Invoke(connectionId);
+                            break;
+                        case NetworkEventType.Data:
+                            BeginReadDataframe(connectionId, message);
+                            break;
+                        case NetworkEventType.Disconnected:
+                            ClientDisconnect?.Invoke(connectionId);
+                            _clients.TryRemove(connectionId, out ConnectionState _);
+                            break;
+                    }
+                    
+                    _receiveQueue.TryDequeue();
+                }
+                else
+                {
+                    break;
+                }
+            }
+            
+            return _receiveQueue.TotalCount;
+        }
 
         public void Stop()
         {
             if (!Active) return;
 
-            LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Stop] Server: stopping...");
+            LogCall?.Invoke(NetworkLogType.Info, $"[NetFrameServer.Stop] Server: stopping...");
             
             _tcpListener?.Stop();
             
             _listenerThread?.Interrupt();
             _listenerThread = null;
             
-            foreach (KeyValuePair<int, ConnectionState> keyValuePair in _clients)
+            foreach (var keyValuePair in _clients)
             {
                 TcpClient tcpClient = keyValuePair.Value.TcpClient;
                 try
@@ -120,8 +156,9 @@ namespace NetFrame.Server
                 }
                 catch
                 {
-                    
+                    //ignored
                 }
+
                 tcpClient.Close();
             }
             
@@ -175,44 +212,7 @@ namespace NetFrame.Server
                 }
             }
         }
-        
-        public int Run(int processLimit, Func<bool> checkEnabled = null)
-        {
-            if (_receiveQueue == null)
-                return 0;
 
-            for (int i = 0; i < processLimit; ++i)
-            {
-                if (checkEnabled != null && !checkEnabled())
-                    break;
-                
-                if (_receiveQueue.TryPeek(out int connectionId, out EventType eventType, out ArraySegment<byte> message))
-                {
-                    switch (eventType)
-                    {
-                        case EventType.Connected:
-                            ClientConnection?.Invoke(connectionId);
-                            break;
-                        case EventType.Data:
-                            BeginReadDataframe(connectionId, message);
-                            break;
-                        case EventType.Disconnected:
-                            ClientDisconnect?.Invoke(connectionId);
-                            _clients.TryRemove(connectionId, out ConnectionState _);
-                            break;
-                    }
-                    
-                    _receiveQueue.TryDequeue();
-                }
-                else
-                {
-                    break;
-                }
-            }
-            
-            return _receiveQueue.TotalCount;
-        }
-        
         //the client's IP address is sometimes required by the server, for example, for bans
         public string GetClientAddress(int connectionId)
         {
@@ -237,7 +237,7 @@ namespace NetFrame.Server
             if (_clients.TryGetValue(clientId, out ConnectionState connection))
             {
                 connection.TcpClient.Close();
-                LogCall?.Invoke(LogType.Info, "[NetFrameClient.Send] Server.Disconnect connectionId:" + clientId);
+                LogCall?.Invoke(NetworkLogType.Info, "[NetFrameClient.Send] Server.Disconnect connectionId:" + clientId);
                 return true;
             }
             return false;
@@ -263,7 +263,7 @@ namespace NetFrame.Server
                 _tcpListener.Server.NoDelay = _noDelay;
                 _tcpListener.Start();
                 
-                LogCall?.Invoke(LogType.Info, $"[NetFrameServer.Listen] Starting server on port {port}");
+                LogCall?.Invoke(NetworkLogType.Info, $"[NetFrameServer.Listen] Starting server on port {port}");
                 
                 while (true)
                 {
@@ -282,7 +282,7 @@ namespace NetFrame.Server
                         
                         tcpClient.Close();
                         
-                        LogCall?.Invoke(LogType.Warning, $"[NetFrameServer.Listen] The customer limit has been reached: {_clients.Count}");
+                        LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameServer.Listen] The customer limit has been reached: {_clients.Count}");
                         
                         continue;
                     }
@@ -308,7 +308,7 @@ namespace NetFrame.Server
                         }
                         catch (Exception exception)
                         {
-                            LogCall?.Invoke(LogType.Error, "[NetFrameServer.Listen] Server send thread exception: " + exception);
+                            LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server send thread exception: " + exception);
                         }
                     });
                     sendThread.IsBackground = true;
@@ -323,7 +323,7 @@ namespace NetFrame.Server
                         }
                         catch (Exception exception)
                         {
-                            LogCall?.Invoke(LogType.Error, "[Telepathy] Server client thread exception: " + exception);
+                            LogCall?.Invoke(NetworkLogType.Error, "[Telepathy] Server client thread exception: " + exception);
                         }
                     });
                     receiveThread.IsBackground = true;
@@ -332,15 +332,15 @@ namespace NetFrame.Server
             }
             catch (ThreadAbortException exception)
             {
-                LogCall?.Invoke(LogType.Info, "[NetFrameServer.Listen] Server thread aborted. That's okay. " + exception);
+                LogCall?.Invoke(NetworkLogType.Info, "[NetFrameServer.Listen] Server thread aborted. That's okay. " + exception);
             }
             catch (SocketException exception)
             {
-                LogCall?.Invoke(LogType.Info, "[NetFrameServer.Listen] Server Thread stopped. That's okay. " + exception);
+                LogCall?.Invoke(NetworkLogType.Info, "[NetFrameServer.Listen] Server Thread stopped. That's okay. " + exception);
             }
             catch (Exception exception)
             {
-                LogCall?.Invoke(LogType.Error, "[NetFrameServer.Listen] Server Exception: " + exception);
+                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server Exception: " + exception);
             }
         }
 
@@ -362,14 +362,14 @@ namespace NetFrame.Server
                         return true;
                     }
 
-                    LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Server.Send: sendPipe for connection {connectionId} reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting this connection for load balancing.");
+                    LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameClient.Send] Server.Send: sendPipe for connection {connectionId} reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting this connection for load balancing.");
                     connection.TcpClient.Close();
                     return false;
                 }
                 return false;
             }
 
-            LogCall?.Invoke(LogType.Error, "[NetFrameClient.Send] Server.Send: message too big: " + message.Count + ". Limit: " + _maxMessageSize);
+            LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.Send] Server.Send: message too big: " + message.Count + ". Limit: " + _maxMessageSize);
             return false;
         }
 
@@ -400,8 +400,7 @@ namespace NetFrame.Server
             
             if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
             {
-                LogCall?.Invoke(LogType.Error, $"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
-                Disconnect(clientId);
+                LogCall?.Invoke(NetworkLogType.Error, $"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
                 return;
             }
             

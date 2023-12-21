@@ -10,12 +10,12 @@ namespace NetFrame.Queues
         struct Entry
         {
             public int connectionId;
-            public EventType eventType;
+            public NetworkEventType NetworkEventType;
             public ArraySegment<byte> data;
-            public Entry(int connectionId, EventType eventType, ArraySegment<byte> data)
+            public Entry(int connectionId, NetworkEventType networkEventType, ArraySegment<byte> data)
             {
                 this.connectionId = connectionId;
-                this.eventType = eventType;
+                this.NetworkEventType = networkEventType;
                 this.data = data;
             }
         }
@@ -49,7 +49,7 @@ namespace NetFrame.Queues
             get { lock (this) { return pool.Count(); } }
         }
         
-        public void Enqueue(int connectionId, EventType eventType, ArraySegment<byte> message)
+        public void Enqueue(int connectionId, NetworkEventType networkEventType, ArraySegment<byte> message)
         {
             lock (this)
             {
@@ -63,7 +63,7 @@ namespace NetFrame.Queues
                     segment = new ArraySegment<byte>(bytes, 0, message.Count);
                 }
 
-                Entry entry = new Entry(connectionId, eventType, segment);
+                Entry entry = new Entry(connectionId, networkEventType, segment);
                 queue.Enqueue(entry);
 
                 int oldCount = Count(connectionId);
@@ -71,10 +71,10 @@ namespace NetFrame.Queues
             }
         }
 
-        public bool TryPeek(out int connectionId, out EventType eventType, out ArraySegment<byte> data)
+        public bool TryPeek(out int connectionId, out NetworkEventType networkEventType, out ArraySegment<byte> data)
         {
             connectionId = 0;
-            eventType = EventType.Disconnected;
+            networkEventType = NetworkEventType.Disconnected;
             data = default;
 
             lock (this)
@@ -83,7 +83,7 @@ namespace NetFrame.Queues
                 {
                     Entry entry = queue.Peek();
                     connectionId = entry.connectionId;
-                    eventType = entry.eventType;
+                    networkEventType = entry.NetworkEventType;
                     data = entry.data;
                     return true;
                 }

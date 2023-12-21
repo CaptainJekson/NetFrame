@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Reflection;
+using NetFrame.Enums;
 using NetFrame.Server;
 using NetFrame.Utils;
 using Samples.Dataframes;
 using Samples.Dataframes.Collections;
 using UnityEngine;
-using LogType = NetFrame.Enums.LogType;
 
 namespace Samples
 {
@@ -100,17 +100,17 @@ namespace Samples
             Debug.Log($"client disconnected Id = {id}");
         }
         
-        private void OnLog(LogType reason, string value)
+        private void OnLog(NetworkLogType reason, string value)
         {
             switch (reason)
             {
-                case LogType.Info:
+                case NetworkLogType.Info:
                     Debug.Log(value);
                     break;
-                case LogType.Warning:
+                case NetworkLogType.Warning:
                     Debug.LogWarning(value);
                     break;
-                case LogType.Error:
+                case NetworkLogType.Error:
                     Debug.LogError(value);
                     break;
             }

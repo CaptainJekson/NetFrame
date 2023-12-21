@@ -5,7 +5,6 @@ using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Dataframes;
 using UnityEngine;
-using LogType = NetFrame.Enums.LogType;
 using Random = UnityEngine.Random;
 
 namespace Samples
@@ -78,17 +77,17 @@ namespace Samples
             Debug.Log("Connected Successful to server");
         }
         
-        private void OnLog(LogType reason, string value)
+        private void OnLog(NetworkLogType reason, string value)
         {
             switch (reason)
             {
-                case LogType.Info:
+                case NetworkLogType.Info:
                     Debug.Log(value);
                     break;
-                case LogType.Warning:
+                case NetworkLogType.Warning:
                     Debug.LogWarning(value);
                     break;
-                case LogType.Error:
+                case NetworkLogType.Error:
                     Debug.LogError(value);
                     break;
             }

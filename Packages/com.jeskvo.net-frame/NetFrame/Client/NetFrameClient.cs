@@ -34,7 +34,7 @@ namespace NetFrame.Client
 
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
-        public event Action<LogType, string> LogCall;
+        public event Action<NetworkLogType, string> LogCall;
 
         public NetFrameClient(int maxMessageSize)
         {
@@ -49,7 +49,7 @@ namespace NetFrame.Client
         {
             if (Connecting || Connected)
             {
-                LogCall?.Invoke(LogType.Warning, "[NetFrameClient.Connect] Client can not create connection because an existing connection is connecting or connected");
+                LogCall?.Invoke(NetworkLogType.Warning, "[NetFrameClient.Connect] Client can not create connection because an existing connection is connecting or connected");
                 return;
             }
             
@@ -136,17 +136,17 @@ namespace NetFrame.Client
                     break;
                 }
 
-                if (_clientConnectionState.ReceiveQueue.TryPeek(out int _, out EventType eventType, out ArraySegment<byte> message))
+                if (_clientConnectionState.ReceiveQueue.TryPeek(out int _, out NetworkEventType eventType, out ArraySegment<byte> message))
                 {
                     switch (eventType)
                     {
-                        case EventType.Connected:
+                        case NetworkEventType.Connected:
                             ConnectionSuccessful?.Invoke();
                             break;
-                        case EventType.Data:
+                        case NetworkEventType.Data:
                             BeginReadDataframe(message);
                             break;
-                        case EventType.Disconnected:
+                        case NetworkEventType.Disconnected:
                             Disconnected?.Invoke();
                             break;
                     }
@@ -183,7 +183,7 @@ namespace NetFrame.Client
             }
             catch (SocketException exception)
             {
-                LogCall?.Invoke(LogType.Error, "[NetFrameClient.ReceiveThreadFunction]: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception);
+                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveThreadFunction]: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception);
             }
             catch (ThreadInterruptedException)
             {
@@ -199,7 +199,7 @@ namespace NetFrame.Client
             }
             catch (Exception exception)
             {
-                LogCall?.Invoke(LogType.Error, "[NetFrameClient.ReceiveThreadFunction] Exception: " + exception);
+                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveThreadFunction] Exception: " + exception);
             }
             
             //state.receivePipe.Enqueue(0, EventType.Disconnected, default);// из за этого событие дисконнекта срабатывает два раза
@@ -228,17 +228,17 @@ namespace NetFrame.Client
                     }
                     else
                     {
-                        LogCall?.Invoke(LogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
+                        LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
                         _clientConnectionState.TcpClient.Close();
                         return false;
                     }
                 }
         
-                LogCall?.Invoke(LogType.Error, "[NetFrameClient.Send] Client.Send: message too big: " + message.Count + ". Limit: " + _maxMessageSize);
+                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.Send] Client.Send: message too big: " + message.Count + ". Limit: " + _maxMessageSize);
                 return false;
             }
             
-            LogCall?.Invoke(LogType.Warning, "[Telepathy] Client.Send: not connected!");
+            LogCall?.Invoke(NetworkLogType.Warning, "[Telepathy] Client.Send: not connected!");
             return false;
         }
 
@@ -269,7 +269,7 @@ namespace NetFrame.Client
             
             if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
             {
-                LogCall?.Invoke(LogType.Error, $"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
+                LogCall?.Invoke(NetworkLogType.Error, $"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
                 Disconnect();
                 return;
             }

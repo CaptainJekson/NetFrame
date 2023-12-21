@@ -1,6 +1,6 @@
 namespace NetFrame.Enums
 {
-    public enum EventType
+    public enum NetworkEventType
     {
         Connected,
         Data,
