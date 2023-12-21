@@ -93,7 +93,7 @@ namespace NetFrame.Interpolation
             // buffer.Add(snapshot.remoteTime, snapshot);                // throws if key exists
 
             int before = buffer.Count;
-            buffer[snapshot.remoteTick] = snapshot; // overwrites if key exists
+            buffer[snapshot.RemoteTime] = snapshot; // overwrites if key exists
             return buffer.Count > before;
         }
 
@@ -148,7 +148,7 @@ namespace NetFrame.Interpolation
             // so we would always be behind by that lag.
             // this requires catchup later.
             if (buffer.Count == 0)
-                localTimeline = snapshot.remoteTick - bufferTime;
+                localTimeline = snapshot.RemoteTime - bufferTime;
 
             // insert into the buffer.
             //
@@ -174,8 +174,8 @@ namespace NetFrame.Interpolation
                     //    as it would have to be C-B
                     //
                     // in practice, scramble is rare and won't make much difference
-                    double previousLocalTime = buffer.Values[buffer.Count - 2].localTick;
-                    double lastestLocalTime = buffer.Values[buffer.Count - 1].localTick;
+                    double previousLocalTime = buffer.Values[buffer.Count - 2].LocalTime;
+                    double lastestLocalTime = buffer.Values[buffer.Count - 1].LocalTime;
 
                     // this is the delivery time since last snapshot
                     double localDeliveryTime = lastestLocalTime - previousLocalTime;
@@ -194,7 +194,7 @@ namespace NetFrame.Interpolation
                 // for that, we need the delivery time EMA.
                 // snapshots may arrive out of order, we can not use last-timeline.
                 // we need to use the inserted snapshot's time - timeline.
-                double latestRemoteTime = snapshot.remoteTick;
+                double latestRemoteTime = snapshot.RemoteTime;
 
                 // ensure timeline stays within a reasonable bound behind/ahead.
                 localTimeline = TimelineClamp(localTimeline, bufferTime, latestRemoteTime);
@@ -264,13 +264,13 @@ namespace NetFrame.Interpolation
                 // is local time between these two?
                 T first = buffer.Values[i];
                 T second = buffer.Values[i + 1];
-                if (localTimeline >= first.remoteTick &&
-                    localTimeline <= second.remoteTick)
+                if (localTimeline >= first.RemoteTime &&
+                    localTimeline <= second.RemoteTime)
                 {
                     // use these two snapshots
                     from = i;
                     to = i + 1;
-                    t = Mathd.InverseLerp(first.remoteTick, second.remoteTick, localTimeline);
+                    t = Mathd.InverseLerp(first.RemoteTime, second.RemoteTime, localTimeline);
                     return;
                 }
             }
@@ -279,7 +279,7 @@ namespace NetFrame.Interpolation
             // so pick either the first or last, depending on which is closer.
 
             // oldest snapshot ahead of local time?
-            if (buffer.Values[0].remoteTick > localTimeline)
+            if (buffer.Values[0].RemoteTime > localTimeline)
             {
                 from = to = 0;
                 t = 0;

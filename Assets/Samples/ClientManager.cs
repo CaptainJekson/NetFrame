@@ -4,6 +4,8 @@ using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Dataframes;
+using Samples.DataframeSnapshots;
+using Samples.Units;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -11,10 +13,15 @@ namespace Samples
 {
     public class ClientManager : MonoBehaviour
     {
+        public static ClientManager Instance;
+        
+        [SerializeField] private Player player;
+        
         private NetFrameClient _netFrameClient;
 
         private void Start()
         {
+            Instance = this;
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
             _netFrameClient = new NetFrameClient(50000);
@@ -29,8 +36,9 @@ namespace Samples
             _netFrameClient.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
             _netFrameClient.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
             _netFrameClient.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+            _netFrameClient.Subscribe<PlayerMoveTransformDataframe>(PlayerMoveTransformDataframeHandler);
         }
-        
+
         private void Update()
         {
             _netFrameClient.Run(100);
@@ -116,6 +124,11 @@ namespace Samples
         {
             Debug.LogError($"Client Disconnect to server ---> {dataframe.ClientId}");
         }
+        
+        private void PlayerMoveTransformDataframeHandler(PlayerMoveTransformDataframe dataframe)
+        {
+            player.NetFrameTransform.AddNetworkDataframeTransform(dataframe);
+        }
 
         private void OnDestroy()
         {
@@ -127,6 +140,7 @@ namespace Samples
             _netFrameClient.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
             _netFrameClient.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
             _netFrameClient.Unsubscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+            _netFrameClient.Unsubscribe<PlayerMoveTransformDataframe>(PlayerMoveTransformDataframeHandler);
         }
 
         private void OnApplicationQuit()

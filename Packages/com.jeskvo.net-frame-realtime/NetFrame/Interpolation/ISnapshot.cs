@@ -7,11 +7,11 @@ namespace NetFrame.Interpolation
     public interface ISnapshot
     {
         // the remote timestamp (when it was sent by the remote)
-        double remoteTick { get; set; }
+        double RemoteTime { get; set; }
 
         // the local timestamp (when it was received on our end)
         // technically not needed for basic snapshot interpolation.
         // only for dynamic buffer time adjustment.
-        double localTick { get; set; }
+        double LocalTime { get; set; }
     }
 }

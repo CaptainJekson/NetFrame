@@ -60,7 +60,7 @@ namespace NetFrame.WriteAndRead
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal unsafe void WriteBlittable<T>(T value) where T : unmanaged
+        public unsafe void WriteBlittable<T>(T value) where T : unmanaged
         {
             int size = sizeof(T);
             

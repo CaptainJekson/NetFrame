@@ -1,7 +1,7 @@
 {
     "name": "Jeskvo.NetFrameRealtime",
     "rootNamespace": "",
-    "references": [],
+    "references": ["GUID:55f1477062b224261873063f544a3036"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": true,

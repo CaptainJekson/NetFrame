@@ -29,7 +29,7 @@ namespace NetFrame.WriteAndRead
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal unsafe T ReadBlittable<T>() where T : unmanaged
+        public unsafe T ReadBlittable<T>() where T : unmanaged
         {
             var size = sizeof(T);
             

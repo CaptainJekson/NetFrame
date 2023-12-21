@@ -11,10 +11,16 @@ namespace Samples
 {
     public class ServerManager : MonoBehaviour
     {
+        public static ServerManager Instance;
+        
         private NetFrameServer _netFrameServer;
+
+        public NetFrameServer NetFrameServer => _netFrameServer;
         
         private void Start()
         {
+            Instance = this;
+            
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             _netFrameServer = new NetFrameServer(50000);
             
