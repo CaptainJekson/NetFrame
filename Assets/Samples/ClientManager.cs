@@ -27,10 +27,8 @@ namespace Samples
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
             _netFrameClient = new NetFrameClient(50000);
-
-
-            StartCoroutine(Delay()); //todo for build test
-            //_netFrameClient.Connect(_ipAddress, 8080);
+            
+            _netFrameClient.Connect(_ipAddress, 8080);
 
             _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
             _netFrameClient.LogCall += OnLog;
@@ -41,12 +39,6 @@ namespace Samples
             _netFrameClient.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
             _netFrameClient.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
             _netFrameClient.Subscribe<PlayerMoveTransformDataframe>(PlayerMoveTransformDataframeHandler);
-        }
-
-        private IEnumerator Delay()
-        {
-            yield return new WaitForSeconds(10.0f);
-            _netFrameClient.Connect(_ipAddress, 8080);
         }
 
         private void Update()
