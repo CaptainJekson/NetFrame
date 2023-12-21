@@ -3,15 +3,15 @@ using NetFrame.UnityTypesWriteAndRead;
 using NetFrame.WriteAndRead;
 using UnityEngine;
 
-namespace Samples.DataframeSnapshots
+namespace Samples.Dataframes
 {
-    public struct PlayerMoveTransformDataframe : INetworkDataframeTransform
+    public struct PlayerMoveDataframe : INetworkDataframeTransform
     {
         public double RemoteTime { get; set; }
         public double LocalTime { get; set; }
-
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; }
+        
         
         public void Write(NetFrameWriter writer)
         {

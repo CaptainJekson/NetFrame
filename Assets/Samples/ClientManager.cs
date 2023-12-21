@@ -4,7 +4,6 @@ using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Dataframes;
-using Samples.DataframeSnapshots;
 using Samples.Units;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -38,7 +37,7 @@ namespace Samples
             _netFrameClient.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
             _netFrameClient.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
             _netFrameClient.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
-            _netFrameClient.Subscribe<PlayerMoveTransformDataframe>(PlayerMoveTransformDataframeHandler);
+            _netFrameClient.Subscribe<PlayerMoveDataframe>(PlayerMoveDataframeHandler);
         }
 
         private void Update()
@@ -127,7 +126,7 @@ namespace Samples
             Debug.LogError($"Client Disconnect to server ---> {dataframe.ClientId}");
         }
         
-        private void PlayerMoveTransformDataframeHandler(PlayerMoveTransformDataframe dataframe)
+        private void PlayerMoveDataframeHandler(PlayerMoveDataframe dataframe)
         {
             player.NetFrameTransform.AddNetworkDataframeTransform(dataframe);
         }
@@ -142,7 +141,6 @@ namespace Samples
             _netFrameClient.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
             _netFrameClient.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
             _netFrameClient.Unsubscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
-            _netFrameClient.Unsubscribe<PlayerMoveTransformDataframe>(PlayerMoveTransformDataframeHandler);
         }
 
         private void OnApplicationQuit()

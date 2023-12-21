@@ -1,4 +1,4 @@
-using Samples.DataframeSnapshots;
+using Samples.Dataframes;
 using UnityEngine;
 
 namespace Samples.Units
@@ -28,7 +28,7 @@ namespace Samples.Units
 
             if (Time.time >= _lastSendTime + IntervalSend)
             {
-                var dataframe = new PlayerMoveTransformDataframe
+                var dataframe = new PlayerMoveDataframe
                 {
                     RemoteTime = Time.timeAsDouble,
                     LocalTime = 0,
