@@ -113,7 +113,7 @@ namespace Samples
 
         private void TestByteDataframeHandler(TestStringIntNetworkDataframe networkDataframe)
         {
-            Debug.Log($"TestByteDataframe: {networkDataframe.Name} {networkDataframe.Age}");
+            Debug.Log($"TestByteDataframe: {networkDataframe.Name} {networkDataframe.Age} {networkDataframe.TestVector3}");
         }
         
         private void UsersDataframeHandler(UsersNetworkDataframe networkDataframe)

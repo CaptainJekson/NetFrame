@@ -44,6 +44,7 @@ namespace Samples
                 {
                     Name = "Vasya",
                     Age = 27,
+                    TestVector3 = Vector3.forward,
                 };
                 _netFrameServer.SendAll(ref dataframe);
             }
