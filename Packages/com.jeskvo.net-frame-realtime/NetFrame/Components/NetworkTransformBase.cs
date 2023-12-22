@@ -66,9 +66,9 @@ namespace NetFrame.Components
                         Position = currentTransform.position,
                         Rotation = currentTransform.rotation,
                     };
-                
+                    
                     _lastSendTime = Time.time;
-                    //_netFrameClient.Send(ref dataframe);
+                    _netFrameClient.Send(ref dataframe);
                 }
             }
             else

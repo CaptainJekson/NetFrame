@@ -64,6 +64,8 @@ namespace Samples
         private void OnApplicationQuit()
         {
             _netFrameServer.Unsubscribe<PlayerSpawnDataframe>(PlayerSpawnRemoteRequestDataframeHandler);
+            
+            _netFrameServer.Stop();
         }
     }
 }

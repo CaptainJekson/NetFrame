@@ -10,7 +10,6 @@ using NetFrame.Enums;
 using NetFrame.Queues;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using UnityEngine;
 using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.Server
@@ -176,14 +175,9 @@ namespace NetFrame.Server
             {
                 if (clientId == id)
                 {
-                    Debug.LogError($"нет {id}");
                     continue;
                 }
-                else
-                {
-                    Debug.LogError($"да {clientId}");
-                }
-                
+
                 Send(ref dataframe, clientId);
             }
         }

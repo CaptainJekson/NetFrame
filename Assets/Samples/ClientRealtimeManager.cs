@@ -91,6 +91,8 @@ namespace Samples
             _netFrameClient.Disconnected -= OnDisconnected;
             
             _netFrameClient.Unsubscribe<PlayerSpawnDataframe>(PlayerSpawnDataframeHandler);
+            
+            _netFrameClient.Disconnect();
         }
     }
 }
