@@ -3,24 +3,21 @@ using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Dataframes;
+using Samples.DataframesForRealtime;
 using Samples.Units;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Samples
 {
     public class ClientManager : MonoBehaviour
     {
         private string _ipAddress = "192.168.31.103"; //"127.0.0.1"
-        
-        public static ClientManager Instance;
-        
-        [SerializeField] private Player player;
-        
+
         private NetFrameClient _netFrameClient;
 
         private void Start()
         {
-            Instance = this;
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
             _netFrameClient = new NetFrameClient(50000);
@@ -35,7 +32,6 @@ namespace Samples
             _netFrameClient.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
             _netFrameClient.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
             _netFrameClient.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
-            _netFrameClient.Subscribe<PlayerMoveDataframe>(PlayerMoveDataframeHandler);
         }
 
         private void Update()
@@ -61,11 +57,6 @@ namespace Samples
                     Value3 = (byte) Random.Range(0,255),
                 };
                 _netFrameClient.Send(ref testByteDataframe);
-            }
-
-            if (Input.GetKeyDown(KeyCode.U))
-            {
-                _netFrameClient.SendTestUdp("Hello from UDP!!!");
             }
         }
 
@@ -126,7 +117,7 @@ namespace Samples
         
         private void PlayerMoveDataframeHandler(PlayerMoveDataframe dataframe)
         {
-            player.NetFrameTransform.AddNetworkDataframeTransform(dataframe);
+            //playerController.NetFrameTransform.AddNetworkDataframeTransform(dataframe);
         }
 
         private void OnDestroy()

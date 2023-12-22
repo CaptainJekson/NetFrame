@@ -3,7 +3,7 @@ using NetFrame.UnityTypesWriteAndRead;
 using NetFrame.WriteAndRead;
 using UnityEngine;
 
-namespace Samples.Dataframes
+namespace Samples.DataframesForRealtime
 {
     public struct PlayerMoveDataframe : INetworkDataframeTransform
     {

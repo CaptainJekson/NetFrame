@@ -22,7 +22,6 @@ namespace NetFrame.Client
         private readonly int _receiveTimeout = 0;
         
         private ClientConnectionState _clientConnectionState;
-        private UdpClient _udpClient; //todo dev переместить _clientConnectionState ????
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         private readonly NetFrameWriter _writer;
         private NetFrameReader _reader;
@@ -41,8 +40,6 @@ namespace NetFrame.Client
             _maxMessageSize = maxMessageSize;
             _writer = new NetFrameWriter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
-
-            _udpClient = new UdpClient(); //todo dev
         }
         
         public void Connect(string ip, int port)
@@ -64,16 +61,6 @@ namespace NetFrame.Client
             
             _clientConnectionState.ReceiveThread.IsBackground = true;
             _clientConnectionState.ReceiveThread.Start();
-        }
-        
-        public void SendTestUdp(string message) //todo dev
-        {
-            byte[] sendBytes = System.Text.Encoding.UTF8.GetBytes(message);
-
-            // Send the message to the server
-            var remoteEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 8080); //todo сделать все это по нормальному
-
-            _udpClient.Send(sendBytes, sendBytes.Length, remoteEndPoint);
         }
 
         public void Disconnect()

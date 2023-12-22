@@ -10,10 +10,10 @@ GameObject:
   m_Component:
   - component: {fileID: 6942721295853699533}
   - component: {fileID: 8309411669927828476}
-  - component: {fileID: 3952084134621964224}
-  - component: {fileID: 5979844008269277130}
+  - component: {fileID: 8967488113380647596}
+  - component: {fileID: 5408849343636661229}
   m_Layer: 0
-  m_Name: Player
+  m_Name: LocalPlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -76,7 +76,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
+  m_Color: {r: 0, g: 0.059925556, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -86,7 +86,7 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!114 &3952084134621964224
+--- !u!114 &8967488113380647596
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -95,11 +95,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 7522071746891982160}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 58eeb48202dc49bca6f67a32db92186d, type: 3}
+  m_Script: {fileID: 11500000, guid: 1f33af4e42e2406b95fd70ae5d0217f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  netFrameTransform: {fileID: 5979844008269277130}
---- !u!114 &5979844008269277130
+--- !u!114 &5408849343636661229
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -108,10 +107,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 7522071746891982160}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d23e6174cd89482b957a4bb02f640ea7, type: 3}
+  m_Script: {fileID: 11500000, guid: 48928a154f694c77b2d496e5de667da8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  transform: {fileID: 6942721295853699533}
+  isLocal: 1
+  targetTransform: {fileID: 6942721295853699533}
   positionInterpolate: 1
   rotationInterpolate: 1
   frequencySend: 30

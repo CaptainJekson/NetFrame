@@ -75,30 +75,10 @@ namespace NetFrame.Server
             _listenerThread.IsBackground = true;
             _listenerThread.Priority = ThreadPriority.BelowNormal;
             _listenerThread.Start();
-            
-            //todo dev
-            _udpServer = new UdpClient(port);
-            // Start receiving data asynchronously
-            _udpServer.BeginReceive(ReceiveDataUpdTest, null);
-            
-            
+
             return true;
         }
 
-        //todo dev
-        private void ReceiveDataUpdTest(IAsyncResult result)
-        {
-            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0); // Get the actual client endpoint
-
-            byte[] receivedBytes = _udpServer.EndReceive(result, ref remoteEndPoint);
-            Debug.LogError($"end point info: {remoteEndPoint.ToString()}");
-            
-            string receivedMessage = Encoding.UTF8.GetString(receivedBytes);
-            Debug.LogError($"message from client upd{remoteEndPoint.ToString()}");
-            
-            _udpServer.BeginReceive(ReceiveDataUpdTest, null);
-        }
-        
         public int Run(int processLimit, Func<bool> checkEnabled = null)
         {
             if (_receiveQueue == null)
@@ -189,6 +169,19 @@ namespace NetFrame.Server
                 Send(ref dataframe, clientId);
             }
         }
+
+        public void SendAllExcept<T>(ref T dataframe, int id) where T : struct, INetworkDataframe
+        {
+            foreach (var clientId in _clients.Keys)
+            {
+                if (clientId == id)
+                {
+                    continue;
+                }
+                
+                Send(ref dataframe, clientId);
+            }
+        }
         
         public void Subscribe<T>(Action<T, int> handler) where T : struct, INetworkDataframe
         {
@@ -221,14 +214,6 @@ namespace NetFrame.Server
                 return ((IPEndPoint)connection.TcpClient.Client.RemoteEndPoint).Address.ToString();
             }
             return "";
-        }
-
-        public void ShowRemoteEndPoint(int connectionId) //todo test
-        {
-            if (_clients.TryGetValue(connectionId, out ConnectionState connection))
-            {
-                Debug.LogError($"end point info: {connection.TcpClient.Client.RemoteEndPoint}");
-            }
         }
 
         // disconnect (kick) a client
@@ -419,8 +404,5 @@ namespace NetFrame.Server
                 }
             }
         }
-        
-        //todo UPD dev
-        
     }
 }

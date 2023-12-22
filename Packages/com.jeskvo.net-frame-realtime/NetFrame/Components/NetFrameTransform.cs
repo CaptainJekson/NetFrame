@@ -8,11 +8,10 @@ using UnityEngine.UI;
 
 namespace NetFrame.Components
 {
+    [Obsolete("Потом удалить")]
     public class NetFrameTransform : MonoBehaviour //todo по сути это только удаленный трансформ сейчас
     {
-        [SerializeField] private Toggle togglePosInterpolate; //todo test
-        
-        [SerializeField] private Transform transform;
+        [SerializeField] private Transform targetTransform;
 
         [SerializeField] private bool positionInterpolate = true;
         [SerializeField] private bool rotationInterpolate = true;
@@ -47,8 +46,6 @@ namespace NetFrame.Components
 
         private void Update()
         {
-            positionInterpolate = togglePosInterpolate.isOn; //todo test
-            
             var unscaledDeltaTime = Time.unscaledDeltaTime;
 
             if (_bufferSnapshots.Count > 0)
@@ -64,23 +61,23 @@ namespace NetFrame.Components
 
                 if (positionInterpolate)
                 {
-                    transform.position = Vector3.LerpUnclamped(fromSnapshot.Position, toSnapshot.Position, (float)time);
+                    targetTransform.position = Vector3.LerpUnclamped(fromSnapshot.Position, toSnapshot.Position, (float)time);
                 }
                 else
                 {
                     var snap = _bufferSnapshots.Values[0];
-                    transform.position = snap.Position;
+                    targetTransform.position = snap.Position;
                     _bufferSnapshots.RemoveAt(0);
                 }
 
                 if (rotationInterpolate)
                 {
-                    transform.rotation = Quaternion.SlerpUnclamped(fromSnapshot.Rotation, toSnapshot.Rotation, (float)time);
+                    targetTransform.rotation = Quaternion.SlerpUnclamped(fromSnapshot.Rotation, toSnapshot.Rotation, (float)time);
                 }
                 else
                 {
                     var snap = _bufferSnapshots.Values[0];
-                    transform.rotation = snap.Rotation;
+                    targetTransform.rotation = snap.Rotation;
                     _bufferSnapshots.RemoveAt(0);
                 }
             }
