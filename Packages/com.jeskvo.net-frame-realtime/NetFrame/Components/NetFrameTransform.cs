@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 namespace NetFrame.Components
 {
-    public class NetFrameTransform : MonoBehaviour //todo по сути это удаленный трансформ сейчас
+    public class NetFrameTransform : MonoBehaviour //todo по сути это только удаленный трансформ сейчас
     {
         [SerializeField] private Toggle togglePosInterpolate; //todo test
         

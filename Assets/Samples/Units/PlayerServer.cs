@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Samples.Units
 {
-    public class PlayerServer : MonoBehaviour
+    public class PlayerServer : MonoBehaviour // todo test class
     {
         [SerializeField] private bool sendTime = true;
         [SerializeField] private float speed = 4;
