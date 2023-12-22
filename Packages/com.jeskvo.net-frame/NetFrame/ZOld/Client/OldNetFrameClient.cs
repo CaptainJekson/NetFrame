@@ -5,14 +5,16 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using NetFrame.Constants;
-using NetFrame.Enums;
-using NetFrame.ThreadSafeContainers;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using NetFrame.ZOld.Constants;
+using NetFrame.ZOld.Enums;
+using NetFrame.ZOld.ThreadSafeContainers;
+using NetFrame.ZOld.Utils;
 
-namespace NetFrame.Client
+namespace NetFrame.ZOld.Client
 {
+    [Obsolete]
     public class OldNetFrameClient
     {
         private readonly NetFrameByteConverter _byteConverter;

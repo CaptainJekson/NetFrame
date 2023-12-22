@@ -1,9 +1,11 @@
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
-namespace NetFrame.Utils
+namespace NetFrame.ZOld.Utils
 {
+    [Obsolete]
     public class ThreadSafeContainer<T> : IEnumerable<T> where T : class
     {
         public int Count => Queue.Count;

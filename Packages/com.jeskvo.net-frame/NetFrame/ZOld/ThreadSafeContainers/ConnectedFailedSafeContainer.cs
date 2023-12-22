@@ -1,7 +1,9 @@
-using NetFrame.Enums;
+using System;
+using NetFrame.ZOld.Enums;
 
-namespace NetFrame.ThreadSafeContainers
+namespace NetFrame.ZOld.ThreadSafeContainers
 {
+    [Obsolete]
     public class ConnectedFailedSafeContainer
     {
         public ReasonServerConnectionFailed Reason;

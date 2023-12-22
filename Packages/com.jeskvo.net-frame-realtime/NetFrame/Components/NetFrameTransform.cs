@@ -32,8 +32,6 @@ namespace NetFrame.Components
 
             if (_bufferSnapshots.Count > 0)
             {
-                //Шаг интерполяции
-                //TODO может быть можно применить StepInterpolation разобраться в чем отличие???
                 SnapshotInterpolation.Step(
                     _bufferSnapshots,
                     unscaledDeltaTime,

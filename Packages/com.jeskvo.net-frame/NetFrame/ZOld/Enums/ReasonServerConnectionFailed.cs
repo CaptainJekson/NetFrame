@@ -1,5 +1,8 @@
-namespace NetFrame.Enums
+using System;
+
+namespace NetFrame.ZOld.Enums
 {
+    [Obsolete]
     public enum ReasonServerConnectionFailed : byte
     {
         AlreadyConnected = 0,

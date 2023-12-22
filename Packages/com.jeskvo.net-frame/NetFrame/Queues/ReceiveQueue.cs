@@ -9,12 +9,13 @@ namespace NetFrame.Queues
     {
         struct Entry
         {
-            public int connectionId;
+            public readonly int ConnectionId;
+            
             public NetworkEventType NetworkEventType;
             public ArraySegment<byte> data;
             public Entry(int connectionId, NetworkEventType networkEventType, ArraySegment<byte> data)
             {
-                this.connectionId = connectionId;
+                this.ConnectionId = connectionId;
                 this.NetworkEventType = networkEventType;
                 this.data = data;
             }
@@ -82,7 +83,7 @@ namespace NetFrame.Queues
                 if (queue.Count > 0)
                 {
                     Entry entry = queue.Peek();
-                    connectionId = entry.connectionId;
+                    connectionId = entry.ConnectionId;
                     networkEventType = entry.NetworkEventType;
                     data = entry.data;
                     return true;
@@ -104,10 +105,10 @@ namespace NetFrame.Queues
                         pool.Return(entry.data.Array);
                     }
 
-                    queueCounter[entry.connectionId]--;
+                    queueCounter[entry.ConnectionId]--;
 
-                    if (queueCounter[entry.connectionId] == 0)
-                        queueCounter.Remove(entry.connectionId);
+                    if (queueCounter[entry.ConnectionId] == 0)
+                        queueCounter.Remove(entry.ConnectionId);
 
                     return true;
                 }

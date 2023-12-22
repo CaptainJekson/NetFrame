@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 
-namespace NetFrame.ThreadSafeContainers
+namespace NetFrame.ZOld.ThreadSafeContainers
 {
+    [Obsolete]
     public class DynamicInvokeForServerSafeContainer
     {
         public List<Delegate> Handlers;

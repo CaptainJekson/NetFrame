@@ -1,8 +1,9 @@
+using System;
 using System.Net.Sockets;
-using NetFrame.Server;
 
-namespace NetFrame.ThreadSafeContainers
+namespace NetFrame.ZOld.ThreadSafeContainers
 {
+    [Obsolete]
     public class ClientConnectionSafeContainer
     {
         public TcpClient TcpClient;

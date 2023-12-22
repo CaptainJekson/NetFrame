@@ -3,13 +3,15 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
-using NetFrame.Constants;
-using NetFrame.ThreadSafeContainers;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using NetFrame.ZOld.Constants;
+using NetFrame.ZOld.ThreadSafeContainers;
+using NetFrame.ZOld.Utils;
 
-namespace NetFrame.Server
+namespace NetFrame.ZOld.Server
 {
+    [Obsolete]
     public class NetFrameClientOnServer
     {
         public bool IsCanRead;

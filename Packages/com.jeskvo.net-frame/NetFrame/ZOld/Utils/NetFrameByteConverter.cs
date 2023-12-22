@@ -1,7 +1,8 @@
 using System;
 
-namespace NetFrame.Utils
+namespace NetFrame.ZOld.Utils
 {
+    [Obsolete]
     public class NetFrameByteConverter
     {
         public byte[] GetByteArrayFromUInt(uint number)
