@@ -5,6 +5,7 @@ namespace Samples.Units
 {
     public class PlayerServer : MonoBehaviour
     {
+        [SerializeField] private bool sendTime = true;
         [SerializeField] private float speed = 4;
 
         [SerializeField] private int frequencySend = 30; //частота отправки
@@ -30,7 +31,7 @@ namespace Samples.Units
             {
                 var dataframe = new PlayerMoveDataframe
                 {
-                    RemoteTime = Time.timeAsDouble,
+                    RemoteTime = sendTime ? Time.timeAsDouble : default,
                     LocalTime = 0,
                     Position = transform.position,
                     //Rotation = //надо тоже затестить
@@ -39,8 +40,6 @@ namespace Samples.Units
                 _lastSendTime = Time.time;
 
                 ServerManager.Instance.NetFrameServer.SendAll(ref dataframe);
-                
-                //Debug.LogError($"{Time.timeAsDouble} --- {lastSendTime}");
             }
         }
     }

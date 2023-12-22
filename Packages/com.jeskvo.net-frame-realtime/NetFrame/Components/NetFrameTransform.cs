@@ -1,33 +1,54 @@
+using System;
 using System.Collections.Generic;
 using NetFrame.Interpolation;
 using NetFrame.Utils;
 using UnityEngine;
+using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 namespace NetFrame.Components
 {
-    public class NetFrameTransform : MonoBehaviour
+    public class NetFrameTransform : MonoBehaviour //todo по сути это удаленный трансформ сейчас
     {
+        [SerializeField] private Toggle togglePosInterpolate; //todo test
+        
         [SerializeField] private Transform transform;
 
         [SerializeField] private bool positionInterpolate = true;
         [SerializeField] private bool rotationInterpolate = true;
+        
+        [Header("Times")] 
+        [SerializeField] private int frequencySend; //частота отправки
+        
+        [Header("Snapshot Interpolation settings")]
+        [SerializeField] public SnapshotInterpolationSettings snapshotSettings = new SnapshotInterpolationSettings();
 
         private SortedList<double, INetworkDataframeTransform> _bufferSnapshots;
         
-        private double BufferTime => NetFrameClientSettings.Instance.IntervalSend * NetFrameClientSettings.Instance.bufferTimeMultiplier;
+        private double BufferTime => IntervalSend * snapshotSettings.bufferTimeMultiplier;
+        
+        private float IntervalSend => 1.0f / frequencySend; //интервал отправки
         
         private float _lastSendTime;
         
         private double _localTimeline;
         private double _localTimescale = 1;
+        
+        private ExponentialMovingAverage _driftEma;
+        private ExponentialMovingAverage _deliveryTimeEma;
 
         private void Awake()
         {
             _bufferSnapshots = new SortedList<double, INetworkDataframeTransform>();
+            
+            _driftEma = new ExponentialMovingAverage(frequencySend * snapshotSettings.driftEmaDuration);
+            _deliveryTimeEma = new ExponentialMovingAverage(frequencySend * snapshotSettings.deliveryTimeEmaDuration);
         }
 
         private void Update()
         {
+            positionInterpolate = togglePosInterpolate.isOn; //todo test
+            
             var unscaledDeltaTime = Time.unscaledDeltaTime;
 
             if (_bufferSnapshots.Count > 0)
@@ -69,17 +90,12 @@ namespace NetFrame.Components
         {
             dataframeSnapshots.LocalTime = NetworkTime.LocalTime;
 
-            if (NetFrameClientSettings.Instance == null) //todo костыль!!!
+            if (snapshotSettings.dynamicAdjustment)
             {
-                return;
-            }
-
-            if (NetFrameClientSettings.Instance.dynamicAdjustment)
-            {
-                NetFrameClientSettings.Instance.bufferTimeMultiplier = SnapshotInterpolation.DynamicAdjustment(
-                    NetFrameClientSettings.Instance.IntervalSend,
-                    NetFrameClientSettings.Instance.DeliveryTimeEma.StandardDeviation,
-                    NetFrameClientSettings.Instance.dynamicAdjustmentTolerance
+                snapshotSettings.bufferTimeMultiplier = SnapshotInterpolation.DynamicAdjustment(
+                    IntervalSend,
+                    _deliveryTimeEma.StandardDeviation,
+                    snapshotSettings.dynamicAdjustmentTolerance
                 );
             }
             
@@ -88,14 +104,14 @@ namespace NetFrame.Components
                 dataframeSnapshots,
                 ref _localTimeline,
                 ref _localTimescale,
-                NetFrameClientSettings.Instance.IntervalSend,
+                IntervalSend,
                 BufferTime,
-                NetFrameClientSettings.Instance.catchupSpeed,
-                NetFrameClientSettings.Instance.slowdownSpeed,
-                ref NetFrameClientSettings.Instance.DriftEma,
-                NetFrameClientSettings.Instance.catchupNegativeThreshold,
-                NetFrameClientSettings.Instance.catchupPositiveThreshold,
-                ref NetFrameClientSettings.Instance.DeliveryTimeEma);
+                snapshotSettings.catchupSpeed,
+                snapshotSettings.slowdownSpeed,
+                ref _driftEma,
+                snapshotSettings.catchupNegativeThreshold,
+                snapshotSettings.catchupPositiveThreshold,
+                ref _deliveryTimeEma);
         }
     }
 }
