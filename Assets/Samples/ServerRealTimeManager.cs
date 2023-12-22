@@ -25,6 +25,11 @@ namespace Samples
             _netFrameServer.Subscribe<PlayerSpawnDataframe>(PlayerSpawnRemoteRequestDataframeHandler);
         }
 
+        private void Update()
+        {
+            _netFrameServer.Run(100);
+        }
+
         private void PlayerSpawnRemoteRequestDataframeHandler(PlayerSpawnDataframe dataframe, int id)
         {
             _netFrameServer.SendAllExcept(ref dataframe, id);

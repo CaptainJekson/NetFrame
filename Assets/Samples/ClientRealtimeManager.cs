@@ -13,7 +13,7 @@ namespace Samples
         [SerializeField] private NetworkTransformPlayer localPlayerTemplate;
         [SerializeField] private NetworkTransformPlayer remotePlayerTemplate;
         
-        private string _ipAddress = "127.0.0.1"; //"127.0.0.1"
+        private string _ipAddress = "192.168.31.103"; //"127.0.0.1"
 
         private NetFrameClient _netFrameClient;
         
@@ -22,7 +22,6 @@ namespace Samples
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
             _netFrameClient = new NetFrameClient(2000);
-            
             _netFrameClient.Connect(_ipAddress, 8080);
 
             _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
@@ -30,6 +29,11 @@ namespace Samples
             _netFrameClient.Disconnected += OnDisconnected;
             
             _netFrameClient.Subscribe<PlayerSpawnDataframe>(PlayerSpawnDataframeHandler);
+        }
+
+        private void Update()
+        {
+            _netFrameClient.Run(100);
         }
 
         private void OnDisconnected()
