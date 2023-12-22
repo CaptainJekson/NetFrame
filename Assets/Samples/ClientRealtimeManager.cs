@@ -13,7 +13,7 @@ namespace Samples
         [SerializeField] private NetworkTransformPlayer localPlayerTemplate;
         [SerializeField] private NetworkTransformPlayer remotePlayerTemplate;
         
-        private string _ipAddress = "192.168.31.103"; //"127.0.0.1"
+        private string _ipAddress = "127.0.0.1"; //"127.0.0.1"
 
         private NetFrameClient _netFrameClient;
         
