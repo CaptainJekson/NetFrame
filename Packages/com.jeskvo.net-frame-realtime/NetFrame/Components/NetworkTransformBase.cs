@@ -40,7 +40,7 @@ namespace NetFrame.Components
         {
             _netFrameClient = netFrameClient;
             
-            _netFrameClient.Subscribe<T>(DataframeSnapshotsHandler);
+            //_netFrameClient.Subscribe<T>(DataframeSnapshotsHandler);
         }
 
         private void Awake()
@@ -68,7 +68,7 @@ namespace NetFrame.Components
                     };
                 
                     _lastSendTime = Time.time;
-                    _netFrameClient.Send(ref dataframe);
+                    //_netFrameClient.Send(ref dataframe);
                 }
             }
             else
@@ -135,7 +135,7 @@ namespace NetFrame.Components
 
         private void OnDestroy()
         {
-            _netFrameClient.Unsubscribe<T>(DataframeSnapshotsHandler);
+            //_netFrameClient.Unsubscribe<T>(DataframeSnapshotsHandler);
         }
     }
 }

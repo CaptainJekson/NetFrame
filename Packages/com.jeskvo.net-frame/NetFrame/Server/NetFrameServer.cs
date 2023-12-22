@@ -176,7 +176,12 @@ namespace NetFrame.Server
             {
                 if (clientId == id)
                 {
+                    Debug.LogError($"нет {id}");
                     continue;
+                }
+                else
+                {
+                    Debug.LogError($"да {clientId}");
                 }
                 
                 Send(ref dataframe, clientId);
