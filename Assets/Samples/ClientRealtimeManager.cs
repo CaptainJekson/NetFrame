@@ -28,7 +28,7 @@ namespace Samples
             _netFrameClient.LogCall += OnLog;
             _netFrameClient.Disconnected += OnDisconnected;
             
-            _netFrameClient.Subscribe<PlayerSpawnResponseDataframe>(PlayerSpawnDataframeHandler);
+            _netFrameClient.Subscribe<PlayerSpawnDataframe>(PlayerSpawnDataframeHandler);
         }
 
         private void Update()
@@ -75,7 +75,7 @@ namespace Samples
             }
         }
         
-        private void PlayerSpawnDataframeHandler(PlayerSpawnResponseDataframe dataframe)
+        private void PlayerSpawnDataframeHandler(PlayerSpawnDataframe dataframe)
         {
             var startPosition = dataframe.StartPosition;
             var startRotation = dataframe.StartRotation;
@@ -90,7 +90,7 @@ namespace Samples
             _netFrameClient.LogCall -= OnLog;
             _netFrameClient.Disconnected -= OnDisconnected;
             
-            _netFrameClient.Unsubscribe<PlayerSpawnResponseDataframe>(PlayerSpawnDataframeHandler);
+            _netFrameClient.Unsubscribe<PlayerSpawnDataframe>(PlayerSpawnDataframeHandler);
         }
     }
 }

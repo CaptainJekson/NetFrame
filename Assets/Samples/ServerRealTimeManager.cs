@@ -32,13 +32,7 @@ namespace Samples
 
         private void PlayerSpawnRemoteRequestDataframeHandler(PlayerSpawnDataframe dataframe, int id)
         {
-            var responseDataframe = new PlayerSpawnResponseDataframe
-            {
-                StartPosition = dataframe.StartPosition,
-                StartRotation = dataframe.StartRotation,
-            };
-            
-            _netFrameServer.SendAllExcept(ref responseDataframe, id);
+            _netFrameServer.SendAllExcept(ref dataframe, id);
         }
 
         private void OnClientConnection(int id)
