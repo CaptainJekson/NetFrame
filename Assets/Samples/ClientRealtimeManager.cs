@@ -29,6 +29,9 @@ namespace Samples
             _netFrameClient.Disconnected += OnDisconnected;
             
             _netFrameClient.Subscribe<PlayerSpawnDataframe>(PlayerSpawnDataframeHandler);
+            
+            var spawnedPlayer = Instantiate(localPlayerTemplate, Vector3.zero, Quaternion.identity); //todo test
+            spawnedPlayer.ClientInitialize(_netFrameClient); //todo //todo test
         }
 
         private void Update()
