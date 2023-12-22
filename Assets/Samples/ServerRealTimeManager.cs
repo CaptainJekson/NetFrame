@@ -23,6 +23,7 @@ namespace Samples
             _netFrameServer.LogCall += OnLog;
             
             _netFrameServer.Subscribe<PlayerSpawnDataframe>(PlayerSpawnRemoteRequestDataframeHandler);
+            _netFrameServer.Subscribe<PlayerMoveDataframe>(PlayerMoveDataframeHandler);
         }
 
         private void Update()
@@ -31,6 +32,11 @@ namespace Samples
         }
 
         private void PlayerSpawnRemoteRequestDataframeHandler(PlayerSpawnDataframe dataframe, int id)
+        {
+            _netFrameServer.SendAllExcept(ref dataframe, id);
+        }
+        
+        private void PlayerMoveDataframeHandler(PlayerMoveDataframe dataframe, int id)
         {
             _netFrameServer.SendAllExcept(ref dataframe, id);
         }
@@ -64,6 +70,7 @@ namespace Samples
         private void OnApplicationQuit()
         {
             _netFrameServer.Unsubscribe<PlayerSpawnDataframe>(PlayerSpawnRemoteRequestDataframeHandler);
+            _netFrameServer.Unsubscribe<PlayerMoveDataframe>(PlayerMoveDataframeHandler);
             
             _netFrameServer.Stop();
         }

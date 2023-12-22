@@ -108,6 +108,8 @@ namespace NetFrame.Components
         private void DataframeSnapshotsHandler(T dataframeSnapshots)
         {
             dataframeSnapshots.LocalTime = NetworkTime.LocalTime;
+            
+            Debug.LogError($"{dataframeSnapshots.Position}");
 
             if (snapshotSettings.dynamicAdjustment)
             {
