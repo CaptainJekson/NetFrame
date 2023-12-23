@@ -4,9 +4,7 @@ using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Dataframes;
 using Samples.DataframesForRealtime;
-using Samples.Units;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Samples
 {
@@ -19,7 +17,7 @@ namespace Samples
         private void Start()
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
-            Debug.LogError("START");
+            
             _netFrameClient = new NetFrameClient(50000);
             
             _netFrameClient.Connect(_ipAddress, 8080);
