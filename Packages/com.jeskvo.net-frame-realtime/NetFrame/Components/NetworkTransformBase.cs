@@ -34,21 +34,18 @@ namespace NetFrame.Components
         private ExponentialMovingAverage _driftEma;
         private ExponentialMovingAverage _deliveryTimeEma;
         
-        private NetFrameClient _netFrameClient; //todo как получить это сразу
-        
-        public void ClientInitialize(NetFrameClient netFrameClient) //todo без вот этого ???
-        {
-            _netFrameClient = netFrameClient;
-            
-            _netFrameClient.Subscribe<T>(DataframeSnapshotsHandler);
-        }
+        private NetFrameClient _netFrameClient;
 
         private void Awake()
         {
+            _netFrameClient = NetFrameContainer.NetFrameClient;
+                
             _bufferSnapshots = new SortedList<double, T>();
                         
             _driftEma = new ExponentialMovingAverage(frequencySend * snapshotSettings.driftEmaDuration);
             _deliveryTimeEma = new ExponentialMovingAverage(frequencySend * snapshotSettings.deliveryTimeEmaDuration);
+            
+            _netFrameClient.Subscribe<T>(DataframeSnapshotsHandler);
         }
 
         private void Update()

@@ -29,6 +29,8 @@ namespace Samples
             _netFrameClient.Disconnected += OnDisconnected;
             
             _netFrameClient.Subscribe<PlayerSpawnDataframe>(PlayerSpawnDataframeHandler);
+            
+            Instantiate(localPlayerTemplate, Vector3.zero, Quaternion.identity);
         }
 
         private void Update()
@@ -49,7 +51,6 @@ namespace Samples
             var startRotation = Quaternion.identity;
             
             var spawnedPlayer = Instantiate(localPlayerTemplate, startPosition, startRotation);
-            spawnedPlayer.ClientInitialize(_netFrameClient); //todo
 
             var spawnDataframe = new PlayerSpawnDataframe
             {
@@ -81,7 +82,6 @@ namespace Samples
             var startRotation = dataframe.StartRotation;
             
             var spawnedPlayer = Instantiate(remotePlayerTemplate, startPosition, startRotation);
-            spawnedPlayer.ClientInitialize(_netFrameClient);
         }
 
         private void OnApplicationQuit()

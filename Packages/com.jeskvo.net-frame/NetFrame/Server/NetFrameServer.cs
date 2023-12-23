@@ -47,6 +47,8 @@ namespace NetFrame.Server
         
         public NetFrameServer(int maxMessageSize)
         {
+            NetFrameContainer.SetServer(this);
+            
             _maxMessageSize = maxMessageSize;
 
             _clients = new ConcurrentDictionary<int, ConnectionState>();

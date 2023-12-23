@@ -9,6 +9,7 @@ using System.Threading;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using NetFrame.ZOld.Constants;
 
 namespace NetFrame.Client
 {
@@ -37,6 +38,8 @@ namespace NetFrame.Client
 
         public NetFrameClient(int maxMessageSize)
         {
+            NetFrameContainer.SetClient(this);
+            
             _maxMessageSize = maxMessageSize;
             _writer = new NetFrameWriter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
