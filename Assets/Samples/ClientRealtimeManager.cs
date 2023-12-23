@@ -27,10 +27,8 @@ namespace Samples
             _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
             _netFrameClient.LogCall += OnLog;
             _netFrameClient.Disconnected += OnDisconnected;
-            
+
             _netFrameClient.Subscribe<PlayerSpawnDataframe>(PlayerSpawnDataframeHandler);
-            
-            Instantiate(localPlayerTemplate, Vector3.zero, Quaternion.identity);
         }
 
         private void Update()
