@@ -3,6 +3,7 @@ using System.Reflection;
 using NetFrame.Enums;
 using NetFrame.Server;
 using NetFrame.Utils;
+using Samples.Dataframes;
 using UnityEngine;
 
 namespace Samples
@@ -53,6 +54,16 @@ namespace Samples
         private void Update()
         {
             _netFrameServer.Run(100);
+            
+            if (Input.GetKeyDown(KeyCode.S))
+            {
+                var dataframe = new TestForMaximDataframe
+                {
+                    Name = "Maxim",
+                    Age = 33,
+                };
+                _netFrameServer.SendAll(ref dataframe);
+            }
         }
 
         private void OnApplicationQuit()

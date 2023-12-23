@@ -3,6 +3,7 @@ using System.Reflection;
 using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
+using Samples.Dataframes;
 using UnityEngine;
 
 namespace Samples
@@ -23,8 +24,15 @@ namespace Samples
             _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
             _netFrameClient.LogCall += OnLog;
             _netFrameClient.Disconnected += OnDisconnected;
+            
+            _netFrameClient.Subscribe<TestForMaximDataframe>(TestForMaximDataframeHandler);
         }
-        
+
+        private void TestForMaximDataframeHandler(TestForMaximDataframe dataframe)
+        {
+            Debug.LogError($"name {dataframe.Name} age{dataframe.Age}");
+        }
+
         private void OnDisconnected()
         {
             Debug.Log("Disconnected from the server");
@@ -61,6 +69,8 @@ namespace Samples
             _netFrameClient.ConnectionSuccessful -= OnConnectionSuccessful;
             _netFrameClient.LogCall -= OnLog;
             _netFrameClient.Disconnected -= OnDisconnected;
+            
+            _netFrameClient.Unsubscribe<TestForMaximDataframe>(TestForMaximDataframeHandler);
             
             _netFrameClient.Disconnect();
         }
