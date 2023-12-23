@@ -2,14 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using NetFrame.ZOld.Constants;
 
 namespace NetFrame.Client
 {
