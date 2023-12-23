@@ -19,7 +19,7 @@ namespace Samples
         private void Start()
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
-            
+            Debug.LogError("START");
             _netFrameClient = new NetFrameClient(50000);
             
             _netFrameClient.Connect(_ipAddress, 8080);
