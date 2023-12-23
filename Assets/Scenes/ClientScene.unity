@@ -857,9 +857,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 1433562859}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c7e46815bc334f59917de1a3c925ed8e, type: 3}
+  m_Script: {fileID: 11500000, guid: dc44ce5b19f6460086025fe45074bb44, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  localPlayerTemplate: {fileID: 5408849343636661229, guid: a0147c8ff108149f5bad71e501263907, type: 3}
+  remotePlayerTemplate: {fileID: 5408849343636661229, guid: 26c4744ed0746456cb7bbd220caf16f6, type: 3}
 --- !u!1 &1521240932
 GameObject:
   m_ObjectHideFlags: 0
