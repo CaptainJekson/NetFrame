@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using NetFrame.Enums;
 using NetFrame.Server;
@@ -10,7 +11,9 @@ namespace Samples
     public class ServerRealTimeManager : MonoBehaviour
     {
         private NetFrameServer _netFrameServer;
-        
+
+        private Dictionary<int, Vector3> _players = new();
+
         private void Start()
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
@@ -33,12 +36,27 @@ namespace Samples
 
         private void PlayerSpawnRemoteRequestDataframeHandler(PlayerSpawnDataframe dataframe, int id)
         {
+            
             _netFrameServer.SendAllExcept(ref dataframe, id);
+
+            foreach (var player in _players)
+            {
+                var dataframe2 = new PlayerSpawnDataframe
+                {
+                    StartPosition = player.Value,
+                };
+                
+                _netFrameServer.Send(ref dataframe2, id);
+            }
+            
+            _players.Add(id, dataframe.StartPosition);
         }
         
         private void PlayerMoveDataframeHandler(PlayerMoveDataframe dataframe, int id)
         {
             _netFrameServer.SendAllExcept(ref dataframe, id);
+
+            _players[id] = dataframe.Position;
         }
 
         private void OnClientConnection(int id)
