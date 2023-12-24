@@ -1,4 +1,3 @@
-using System;
 using NetFrame;
 using NetFrame.WriteAndRead;
 

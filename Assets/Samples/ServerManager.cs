@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
+using NetFrame.Enums;
 using NetFrame.Server;
 using NetFrame.Utils;
 using Samples.Dataframes;
@@ -10,47 +11,44 @@ namespace Samples
 {
     public class ServerManager : MonoBehaviour
     {
-        private NetFrameServer _server;
+        public static ServerManager Instance;
+        
+        private NetFrameServer _netFrameServer;
+
+        public NetFrameServer NetFrameServer => _netFrameServer;
         
         private void Start()
         {
+            Instance = this;
+            
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
-            _server = new NetFrameServer();
+            _netFrameServer = new NetFrameServer(50000);
             
-            _server.Start(8080, 10);
+            _netFrameServer.Start(8080, 10);
 
-            _server.ClientConnection += OnClientConnection;
-            _server.ClientDisconnect += OnClientDisconnect;
+            _netFrameServer.ClientConnection += OnClientConnection;
+            _netFrameServer.ClientDisconnect += OnClientDisconnect;
+            _netFrameServer.LogCall += OnLog;
             
-            _server.Subscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
-            _server.Subscribe<TestNicknameDataframe>(TestNicknameDataframeHandler);
-        }
-
-        private void OnClientConnection(int id)
-        {
-            Debug.Log($"client connected Id = {id}");
-        }
-        
-        private void OnClientDisconnect(int id)
-        {
-            Debug.Log($"client disconnected Id = {id}");
+            _netFrameServer.Subscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
+            _netFrameServer.Subscribe<TestNicknameDataframe>(TestNicknameDataframeHandler);
         }
 
         private void Update()
         {
-            _server.Run();
+            _netFrameServer.Run(100);
             
-            if (Input.GetKeyDown(KeyCode.S))
+            if (Input.GetKeyDown(KeyCode.T))
             {
                 var dataframe = new TestStringIntNetworkDataframe
                 {
                     Name = "Vasya",
                     Age = 27,
                 };
-                _server.SendAll(ref dataframe);
+                _netFrameServer.SendAll(ref dataframe);
             }
 
-            if (Input.GetKeyDown(KeyCode.B))
+            if (Input.GetKeyDown(KeyCode.Y))
             {
                 var users = new List<UserNetworkModel>
                 {
@@ -92,7 +90,33 @@ namespace Samples
                 {
                     Users = users,
                 };
-                _server.SendAll(ref dataframeCollection);
+                _netFrameServer.SendAll(ref dataframeCollection);
+            }
+        }
+        
+        private void OnClientConnection(int id)
+        {
+            Debug.Log($"client connected Id = {id}");
+        }
+        
+        private void OnClientDisconnect(int id)
+        {
+            Debug.Log($"client disconnected Id = {id}");
+        }
+        
+        private void OnLog(NetworkLogType reason, string value)
+        {
+            switch (reason)
+            {
+                case NetworkLogType.Info:
+                    Debug.Log(value);
+                    break;
+                case NetworkLogType.Warning:
+                    Debug.LogWarning(value);
+                    break;
+                case NetworkLogType.Error:
+                    Debug.LogError(value);
+                    break;
             }
         }
         
@@ -108,15 +132,16 @@ namespace Samples
 
         private void OnDestroy()
         {
-            _server.ClientConnection -= OnClientConnection;
-            _server.ClientDisconnect -= OnClientDisconnect;
+            _netFrameServer.ClientConnection -= OnClientConnection;
+            _netFrameServer.ClientDisconnect -= OnClientDisconnect;
+            _netFrameServer.LogCall -= OnLog;
             
-            _server.Unsubscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
+            _netFrameServer.Unsubscribe<TestByteNetworkDataframe>(TestByteDataframeHandler);
         }
-        
+
         private void OnApplicationQuit()
         {
-            _server.Stop();
+            _netFrameServer.Stop();
         }
     }
 }

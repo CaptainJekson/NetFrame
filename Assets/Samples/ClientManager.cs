@@ -3,31 +3,59 @@ using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Dataframes;
+using Samples.DataframesForRealtime;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
 namespace Samples
 {
     public class ClientManager : MonoBehaviour
     {
-        private NetFrameClient _client;
+        private readonly string _ipAddress = "127.0.0.1";
+
+        private NetFrameClient _netFrameClient;
 
         private void Start()
         {
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
-            _client = new NetFrameClient();
+            _netFrameClient = new NetFrameClient(50000);
             
-            _client.Connect("127.0.0.1", 8080);
+            _netFrameClient.Connect(_ipAddress, 8080);
 
-            _client.ConnectionSuccessful += OnConnectionSuccessful;
-            _client.ConnectedFailed += OnConnectedFailed;
-            _client.Disconnected += OnDisconnected;
+            _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
+            _netFrameClient.LogCall += OnLog;
+            _netFrameClient.Disconnected += OnDisconnected;
             
-            _client.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
-            _client.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
-            _client.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
-            _client.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+            _netFrameClient.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
+            _netFrameClient.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
+            _netFrameClient.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
+            _netFrameClient.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+        }
+
+        private void Update()
+        {
+            _netFrameClient.Run(100);
+            
+            if (Input.GetKeyDown(KeyCode.E)) //Disconnect
+            {
+                _netFrameClient.Disconnect();
+            }
+
+            if (Input.GetKeyDown(KeyCode.R)) //Reconnection
+            {
+                _netFrameClient.Connect(_ipAddress, 8080);
+            }
+            
+            if (Input.GetKeyDown(KeyCode.T)) //Send
+            {
+                var testByteDataframe = new TestByteNetworkDataframe
+                {
+                    Value1 = (byte) Random.Range(0,255),
+                    Value2 = (byte) Random.Range(0,255),
+                    Value3 = (byte) Random.Range(0,255),
+                };
+                _netFrameClient.Send(ref testByteDataframe);
+            }
         }
 
         private void OnDisconnected()
@@ -45,51 +73,22 @@ namespace Samples
             Debug.Log("Connected Successful to server");
         }
         
-        private void OnConnectedFailed(ReasonServerConnectionFailed reason, string parameters)
+        private void OnLog(NetworkLogType reason, string value)
         {
             switch (reason)
             {
-                case ReasonServerConnectionFailed.AlreadyConnected:
-                    Debug.LogError($"already connected {parameters}");
+                case NetworkLogType.Info:
+                    Debug.Log(value);
                     break;
-                case ReasonServerConnectionFailed.ImpossibleToConnect:
-                    Debug.LogError($"impossible to connect {parameters}");
+                case NetworkLogType.Warning:
+                    Debug.LogWarning(value);
                     break;
-                case ReasonServerConnectionFailed.ConnectionLost:
-                    Debug.LogError($"connection lost {parameters}");
-                    break;
-                case ReasonServerConnectionFailed.NoDataframe:
-                    Debug.LogError($"no dataframe {parameters}"); 
+                case NetworkLogType.Error:
+                    Debug.LogError(value);
                     break;
             }
         }
 
-        private void Update()
-        {
-            _client.Run();
-            
-            if (Input.GetKeyDown(KeyCode.D)) //Disconnect
-            {
-                _client.Disconnect();
-            }
-
-            if (Input.GetKeyDown(KeyCode.C)) //Reconnection
-            {
-                _client.Connect("127.0.0.1", 8080);
-            }
-            
-            if (Input.GetKeyDown(KeyCode.S)) //Send
-            {
-                var testByteDataframe = new TestByteNetworkDataframe
-                {
-                    Value1 = (byte) Random.Range(0,255),
-                    Value2 = (byte) Random.Range(0,255),
-                    Value3 = (byte) Random.Range(0,255),
-                };
-                _client.Send(ref testByteDataframe);
-            }
-        }
-        
         private void TestByteDataframeHandler(TestStringIntNetworkDataframe networkDataframe)
         {
             Debug.Log($"TestByteDataframe: {networkDataframe.Name} {networkDataframe.Age}");
@@ -113,22 +112,27 @@ namespace Samples
         {
             Debug.LogError($"Client Disconnect to server ---> {dataframe.ClientId}");
         }
+        
+        private void PlayerMoveDataframeHandler(PlayerMoveDataframe dataframe)
+        {
+            //playerController.NetFrameTransform.AddNetworkDataframeTransform(dataframe);
+        }
 
         private void OnDestroy()
         {
-            _client.ConnectionSuccessful -= OnConnectionSuccessful;
-            _client.ConnectedFailed -= OnConnectedFailed;
-            _client.Disconnected -= OnDisconnected;
+            _netFrameClient.ConnectionSuccessful -= OnConnectionSuccessful;
+            _netFrameClient.LogCall -= OnLog;
+            _netFrameClient.Disconnected -= OnDisconnected;
             
-            _client.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
-            _client.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
-            _client.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
-            _client.Unsubscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+            _netFrameClient.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
+            _netFrameClient.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
+            _netFrameClient.Unsubscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
+            _netFrameClient.Unsubscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
         }
 
         private void OnApplicationQuit()
         {
-            _client.Disconnect();
+            _netFrameClient.Disconnect();
         }
     }
 }

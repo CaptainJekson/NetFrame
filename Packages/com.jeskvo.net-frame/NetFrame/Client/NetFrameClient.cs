@@ -4,10 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
-using NetFrame.Constants;
+using System.Threading;
 using NetFrame.Enums;
-using NetFrame.ThreadSafeContainers;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
 
@@ -15,240 +13,65 @@ namespace NetFrame.Client
 {
     public class NetFrameClient
     {
-        private readonly NetFrameByteConverter _byteConverter;
+        private readonly int _sendQueueLimit = 10000;
+        private readonly int _receiveQueueLimit = 10000;
+        private readonly bool _noDelay = true;
+        private readonly int _maxMessageSize;
+        private readonly int _sendTimeout = 5000;
+        private readonly int _receiveTimeout = 0;
+        
+        private ClientConnectionState _clientConnectionState;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
-        
-        private TcpClient _tcpSocket;
-        private NetworkStream _networkStream;
-
-        private NetFrameWriter _writer;
+        private readonly NetFrameWriter _writer;
         private NetFrameReader _reader;
+
+        private bool Connected => _clientConnectionState != null && _clientConnectionState.Connected;
+        private bool Connecting => _clientConnectionState != null && _clientConnectionState.Connecting;
         
-        private byte[] _receiveBuffer;
-        private byte[] _receiveBufferOversize;
+        public int ReceivePipeCount => _clientConnectionState != null ? _clientConnectionState.ReceiveQueue.TotalCount : 0;
 
-        private int _receiveBufferSize;
-        private int _writeBufferSize;
-        
-        private bool _isCanRead = true;
-        private bool _isOversizeReceiveBuffer;
-
-        private readonly ThreadSafeContainer<ConnectedFailedSafeContainer> _connectedFailedSafeContainer;
-        private readonly ThreadSafeContainer<ConnectionSuccessfulSafeContainer> _connectionSuccessfulSafeContainer;
-        private readonly ThreadSafeContainer<DynamicInvokeForClientSafeContainer> _dynamicInvokeForClientSafeContainer;
-        private readonly ThreadSafeContainer<DisconnectSafeContainer> _disconnectSafeContainer;
-
-        public event Action<ReasonServerConnectionFailed, string> ConnectedFailed;
         public event Action ConnectionSuccessful;
         public event Action Disconnected;
+        public event Action<NetworkLogType, string> LogCall;
 
-        public NetFrameClient()
+        public NetFrameClient(int maxMessageSize)
         {
+            NetFrameContainer.SetClient(this);
+            
+            _maxMessageSize = maxMessageSize;
+            _writer = new NetFrameWriter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
-            _byteConverter = new NetFrameByteConverter();
-            
-            _connectedFailedSafeContainer = new ThreadSafeContainer<ConnectedFailedSafeContainer>();
-            _connectionSuccessfulSafeContainer = new ThreadSafeContainer<ConnectionSuccessfulSafeContainer>();
-            _dynamicInvokeForClientSafeContainer = new ThreadSafeContainer<DynamicInvokeForClientSafeContainer>();
-            _disconnectSafeContainer = new ThreadSafeContainer<DisconnectSafeContainer>();
-        }
-
-        public void Connect(string host, int port, int receiveBufferSize = 4096, int writeBufferSize = 4096)
-        {
-            if (_tcpSocket != null && _tcpSocket.Connected)
-            {
-                ConnectedFailed?.Invoke(ReasonServerConnectionFailed.AlreadyConnected, $"host: {host} port: {port}");
-                return;
-            }
-
-            _tcpSocket = new TcpClient();
-
-            _receiveBufferSize = receiveBufferSize;
-            _writeBufferSize = writeBufferSize;
-            _receiveBuffer = new byte[receiveBufferSize];
-
-            _writer = new NetFrameWriter(_writeBufferSize);
-            _reader = new NetFrameReader(new byte[_receiveBufferSize]);
-
-            _tcpSocket.BeginConnect(host, port, BeginConnectCallback, _tcpSocket);
-        }
-
-        public void Run()
-        {
-            CheckDisconnectToServer();
-            CheckAvailableBytes();
-
-            foreach (var response in _connectedFailedSafeContainer)
-            {
-                ConnectedFailed?.Invoke(response.Reason, response.Parameters);
-            }
-
-            foreach (var response in _connectionSuccessfulSafeContainer)
-            {
-                ConnectionSuccessful?.Invoke();
-            }
-
-            foreach (var response in _disconnectSafeContainer)
-            {
-                Disconnect();
-            }
-
-            foreach (var response in _dynamicInvokeForClientSafeContainer)
-            {
-                foreach (var handler in response.Handlers)
-                {
-                    handler.DynamicInvoke(response.Dataframe);
-                }
-            }
-        }
-
-        private void BeginConnectCallback(IAsyncResult result)
-        {
-            var tcpSocket = (TcpClient) result.AsyncState;
-
-            if (!tcpSocket.Connected)
-            {
-                _connectedFailedSafeContainer.Add(new ConnectedFailedSafeContainer
-                {
-                    Reason = ReasonServerConnectionFailed.ImpossibleToConnect,
-                    Parameters = string.Empty,
-                });
-                
-                return;
-            }
-
-            _networkStream = tcpSocket.GetStream();
-            
-            _connectionSuccessfulSafeContainer.Add(new ConnectionSuccessfulSafeContainer());
         }
         
-        private void CheckAvailableBytes()
+        public void Connect(string ip, int port)
         {
-            if (_networkStream != null && _networkStream.CanRead && _networkStream.DataAvailable && _isCanRead)
+            if (Connecting || Connected)
             {
-                var availableBytes = _tcpSocket.Available;
-
-                if (availableBytes > _receiveBufferSize)
-                {
-                    _receiveBufferOversize = new byte[availableBytes];
-                    _reader = new NetFrameReader(new byte[availableBytes]);
-                    _isOversizeReceiveBuffer = true;
-                    
-                    _isCanRead = false;
-                }
-                else if (_isOversizeReceiveBuffer)
-                {
-                    _isOversizeReceiveBuffer = false;
-                    _reader = new NetFrameReader(new byte[_receiveBufferSize]);
-                    
-                    _isCanRead = false;
-                }
-
-                if (_isOversizeReceiveBuffer)
-                {
-                    _networkStream.BeginRead(_receiveBufferOversize, 0, availableBytes, BeginReadBytesCallback, null);
-                }
-                else
-                {
-                    _networkStream.BeginRead(_receiveBuffer, 0, _receiveBufferSize, BeginReadBytesCallback, null);
-                }
+                LogCall?.Invoke(NetworkLogType.Warning, "[NetFrameClient.Connect] Client can not create connection because an existing connection is connecting or connected");
+                return;
             }
-        }
-
-        private void BeginReadBytesCallback(IAsyncResult result)
-        {
-            try
+            
+            _clientConnectionState = new ClientConnectionState(_maxMessageSize);
+            _clientConnectionState.Connecting = true;
+            _clientConnectionState.TcpClient.Client = null;
+            
+            _clientConnectionState.ReceiveThread = new Thread(() => 
             {
-                if (!_networkStream.CanRead)
-                {
-                    return;
-                }
-                
-                var byteReadLength = _networkStream.EndRead(result);
-                _isCanRead = true;
-
-                if (byteReadLength <= 0)
-                {
-                    return;
-                }
-
-                var allBytes = new byte[byteReadLength];
-
-                Array.Copy( _isOversizeReceiveBuffer ? _receiveBufferOversize : _receiveBuffer, 
-                    allBytes, byteReadLength);
-                
-                var readBytesCompleteCount = 0;
-
-                do
-                {
-                    var packageSizeSegment = new ArraySegment<byte>(allBytes, readBytesCompleteCount,
-                        NetFrameConstants.SizeByteCount);
-                    var packageSize = _byteConverter.GetUIntFromByteArray(packageSizeSegment.ToArray());
-                    var packageBytes = new ArraySegment<byte>(allBytes, readBytesCompleteCount, packageSize);
-
-                    var tempIndex = 0;
-                    for (var index = NetFrameConstants.SizeByteCount; index < packageSize; index++)
-                    {
-                        var b = packageBytes[index];
-
-                        if (b == '\n')
-                        {
-                            tempIndex = index + 1;
-                            break;
-                        }
-                    }
-
-                    var headerSegment = new ArraySegment<byte>(packageBytes.ToArray(),
-                        NetFrameConstants.SizeByteCount,
-                        tempIndex - NetFrameConstants.SizeByteCount - 1);
-                    var contentSegment =
-                        new ArraySegment<byte>(packageBytes.ToArray(), tempIndex, packageSize - tempIndex);
-                    var headerDataframe = Encoding.UTF8.GetString(headerSegment);
-
-                    readBytesCompleteCount += packageSize;
-
-                    if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
-                    {
-                        ConnectedFailed?.Invoke(ReasonServerConnectionFailed.NoDataframe, $"headerDataframe: {headerDataframe}");
-                        _disconnectSafeContainer.Add(new DisconnectSafeContainer());
-                        continue;
-                    }
-                    
-                    var targetType = dataframe.GetType();
-                    
-                    _reader.SetBuffer(contentSegment);
-                    dataframe.Read(_reader);
-                    
-                    if (_handlers.TryGetValue(targetType, out var handler))
-                    {
-                        _dynamicInvokeForClientSafeContainer.Add(new DynamicInvokeForClientSafeContainer
-                        {
-                            Handlers = handler,
-                            Dataframe = dataframe,
-                        });
-                    }
-                } 
-                while (readBytesCompleteCount < allBytes.Length);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"[NetFrameClient.BeginReadBytesCallback] Error receive TCP Client {e.Message}");
-                //Debug.LogError($"[NetFrameClient.BeginReadBytesCallback] Error receive TCP Client {e.Message}");
-                
-                _disconnectSafeContainer.Add(new DisconnectSafeContainer());
-            }
+                ReceiveThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
+            });
+            
+            _clientConnectionState.ReceiveThread.IsBackground = true;
+            _clientConnectionState.ReceiveThread.Start();
         }
 
         public void Disconnect()
         {
-            if (_tcpSocket != null && _tcpSocket.Connected)
+            if (Connecting || Connected)
             {
-                _tcpSocket.Close();
-
-                Disconnected?.Invoke();
+                _clientConnectionState.Dispose();
             }
         }
-
+        
         public void Send<T>(ref T dataframe) where T : struct, INetworkDataframe
         {
             _writer.Reset();
@@ -261,21 +84,9 @@ namespace NetFrame.Client
             var dataDataframe = _writer.ToArraySegment();
             var allData = heaterDataframe.Concat(dataDataframe).ToArray();
 
-            var allPackageSize = (uint)allData.Length + NetFrameConstants.SizeByteCount;
-            var sizeBytes = _byteConverter.GetByteArrayFromUInt(allPackageSize);
-            var allPackage = sizeBytes.Concat(allData).ToArray();
-
-            Task.Run(async () =>
-            {
-                await SendAsync(_networkStream, allPackage);
-            });
+            Send(allData);
         }
         
-        private async Task SendAsync(NetworkStream networkStream, ArraySegment<byte> data)
-        {
-            await networkStream.WriteAsync(data);
-        }
-
         public void Subscribe<T>(Action<T> handler) where T : struct, INetworkDataframe
         {
             _handlers.AddOrUpdate(typeof(T), new List<Delegate> { handler }, (_, currentHandlers) => 
@@ -298,35 +109,173 @@ namespace NetFrame.Client
                 }
             }
         }
+        
+        public int Run(int processLimit, Func<bool> checkEnabled = null)
+        {
+            if (_clientConnectionState == null)
+            {
+                return 0;
+            }
+            
+            for (int i = 0; i < processLimit; ++i)
+            {
+                if (checkEnabled != null && !checkEnabled())
+                {
+                    break;
+                }
+
+                if (_clientConnectionState.ReceiveQueue.TryPeek(out int _, out NetworkEventType eventType, out ArraySegment<byte> message))
+                {
+                    switch (eventType)
+                    {
+                        case NetworkEventType.Connected:
+                            ConnectionSuccessful?.Invoke();
+                            break;
+                        case NetworkEventType.Data:
+                            BeginReadDataframe(message);
+                            break;
+                        case NetworkEventType.Disconnected:
+                            Disconnected?.Invoke();
+                            break;
+                    }
+                    
+                    _clientConnectionState.ReceiveQueue.TryDequeue();
+                }
+                else
+                {
+                    break;
+                }
+            }
+            
+            return _clientConnectionState.ReceiveQueue.TotalCount;
+        }
+        
+        private void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int maxMessageSize, 
+            bool noDelay, int sendTimeout, int receiveTimeout, int receiveQueueLimit)
+        {
+            Thread sendThread = null;
+            try
+            {
+                state.TcpClient.Connect(ip, port);
+                state.Connecting = false;
+                
+                state.TcpClient.NoDelay = noDelay;
+                state.TcpClient.SendTimeout = sendTimeout;
+                state.TcpClient.ReceiveTimeout = receiveTimeout;
+                
+                sendThread = new Thread(() => { ThreadFunctions.SendLoop(0, state.TcpClient, state.SendQueue, state.SendPending); });
+                sendThread.IsBackground = true;
+                sendThread.Start();
+                
+                ThreadFunctions.ReceiveLoop(0, state.TcpClient, maxMessageSize, state.ReceiveQueue, receiveQueueLimit);
+            }
+            catch (SocketException exception)
+            {
+                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveThreadFunction]: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception);
+            }
+            catch (ThreadInterruptedException)
+            {
+                // expected if Disconnect() aborts it
+            }
+            catch (ThreadAbortException)
+            {
+                
+            }
+            catch (ObjectDisposedException)
+            {
+          
+            }
+            catch (Exception exception)
+            {
+                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveThreadFunction] Exception: " + exception);
+            }
+            
+            //state.receivePipe.Enqueue(0, EventType.Disconnected, default);// из за этого событие дисконнекта срабатывает два раза
+            sendThread?.Interrupt();
+            
+            state.Connecting = false;
+            state.TcpClient?.Close();
+        }
 
         private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
         {
             return typeof(T).Name;
         }
 
-        private void CheckDisconnectToServer()
+        private bool Send(ArraySegment<byte> message)
         {
-            if (_tcpSocket == null || !_tcpSocket.Connected)
+            if (Connected)
+            {
+                if (message.Count <= _maxMessageSize)
+                {
+                    if (_clientConnectionState.SendQueue.Count < _sendQueueLimit)
+                    {
+                        _clientConnectionState.SendQueue.Enqueue(message);
+                        _clientConnectionState.SendPending.Set();
+                        return true;
+                    }
+                    else
+                    {
+                        LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
+                        _clientConnectionState.TcpClient.Close();
+                        return false;
+                    }
+                }
+        
+                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.Send] Client.Send: message too big: " + message.Count + ". Limit: " + _maxMessageSize);
+                return false;
+            }
+            
+            LogCall?.Invoke(NetworkLogType.Warning, "[Telepathy] Client.Send: not connected!");
+            return false;
+        }
+
+        private void BeginReadDataframe(ArraySegment<byte> receiveBytes)
+        {
+            var allBytes = receiveBytes.Array;
+
+            if (allBytes == null)
             {
                 return;
             }
-            
-            if (!_tcpSocket.Client.Poll(0, SelectMode.SelectRead))
+
+            var tempIndex = 0;
+            for (var index = 0; index < allBytes.Length; index++)
             {
+                var b = receiveBytes[index];
+
+                if (b == '\n')
+                {
+                    tempIndex = index + 1;
+                    break;
+                }
+            }
+            
+            var headerSegment = new ArraySegment<byte>(receiveBytes.ToArray(),0,tempIndex - 1);
+            var contentSegment = new ArraySegment<byte>(receiveBytes.ToArray(), tempIndex, receiveBytes.Count - tempIndex);
+            var headerDataframe = Encoding.UTF8.GetString(headerSegment);
+            
+            if (!NetFrameDataframeCollection.TryGetByKey(headerDataframe, out var dataframe))
+            {
+                LogCall?.Invoke(NetworkLogType.Error, $"[NetFrameClientOnServer.BeginReadBytesCallback] no datagram: {headerDataframe}");
+                Disconnect();
                 return;
             }
             
-            var buff = new byte[1];
+            var targetType = dataframe.GetType();
+
+            _reader = new NetFrameReader(new byte[_maxMessageSize]);
+            _reader.SetBuffer(contentSegment);
             
-            
-            if (_tcpSocket.Client.Receive(buff, SocketFlags.Peek) != 0)
+            dataframe.Read(_reader);
+
+            if (_handlers.TryGetValue(targetType, out var handlers))
             {
-                return;
+                foreach (var handler in handlers)
+                {
+                    handler.DynamicInvoke(dataframe);
+                }
             }
-            
-            _tcpSocket.Client.Disconnect(false);
-            
-            ConnectedFailed?.Invoke(ReasonServerConnectionFailed.ConnectionLost, string.Empty);
         }
     }
 }
