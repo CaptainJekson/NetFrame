@@ -159,6 +159,7 @@ var testDataframe = new TestDataframe
 };
 _server.Send(ref testDataframe, 1); //send to client with id = 1
 _server.SendAll(ref testDataframe); //send to all clients
+_server.SendAllExcept(ref testDataframe, 1); //send to all clients except client with Id = 1
 ```
 
 ### Listen
