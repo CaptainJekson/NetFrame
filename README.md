@@ -22,37 +22,46 @@ https://www.nuget.org/packages/NetFrame
 ### Server
 
 ```c#
-_server = new NetFrameServer();
+_server = new NetFrameServer(2000);
 _server.Start(8080, 10);
 ```
-Для запуска сервера создайте экземпляр сервера и вызовите метод Start()
-передав в качестве параметров номер порта и количество максимально
-подключенных клиентов.
+To start the server, create an instance of the server, 
+passing the maximum packet size, and call the `Start()` 
+method, passing the port number and maximum number of connected clients.
+
 
 ```c#
 private void Update()
 {
-    _server.Run();
+    _server.Run(100);
 }
 ```
 
-Также необходимо вызывать метод `Run()` каждый кадр для Unity или в
-бесконечном цикле для .NET для поддержания сессии и для проверки
-доступных пакетов для чтения. Самостоятельно можно установить кулдаун
-для вызова этого метода, чтобы не вызывать слишком часто.
+Also, it is necessary to call the `Run()` method every frame 
+for Unity or in an infinite loop for .NET to maintain the session 
+and check for available packets to read. You can set a cooldown to control how often this 
+method is called in order to avoid calling it too frequently. 
+Use the limit parameter to avoid deadlocks.
 
 ```c#
 _server.ClientConnection += OnClientConnection;
 _server.ClientDisconnect += OnClientDisconnect;
 ```
-События ClientConnection и ClientDisconnect вызываются при подключении
-и отключении клиента соответственно.
+The `ClientConnection` and `ClientDisconnect` events 
+are triggered when a client connects and disconnects, respectively.
+
+```c#
+_server.LogCall += OnLog;
+```
+
+The `LogCall` event is triggered to display server logs, warnings, and errors.
 
 ```c#
 _server.Stop();
 ```
-Вызовите Stop для остановки работы сервера. Например в OnApplicationQuit()
-метода в Unity.
+
+Call `Stop` to stop the server. 
+For example, in the OnApplicationQuit() method in Unity.
 
 ### Client
 
@@ -60,46 +69,48 @@ _server.Stop();
 _client = new NetFrameClient();
 _client.Connect("127.0.0.1", 8080);
 ```
-Для подключения клиента к серверу создайте экземпляр сервера и
-вызовите метод Connect() передав в качестве параметров ip адрес и
-номер порта.
+
+To connect a client to the server, create an instance of the 
+server and call the `Connect()` method, passing the 
+IP address and port number as parameters.
 
 ```c#
 private void Update()
 {
-    _server.Run();
+    _server.Run(100);
 }
 ```
-По аналогии с сервером нужно вызывать метод Run() каждый
-кадр для Unity или в бесконечном цикле для .NET для поддержания сессии.
+
+Similarly to the server, you need to call the Run() method 
+every frame for Unity or in an infinite loop for .NET to maintain the session.
 
 ```c#
 _client.ConnectionSuccessful += OnConnectionSuccessful;
-_client.ConnectedFailed += OnConnectedFailed;
 _client.Disconnected += OnDisconnected;
+_client.LogCall += OnLog;
 ```
 
-Событие ConnectionSuccessful вызывается при успешном подключении к серверу. ConnectedFailed вызывается при ошибке соединения с сервером:
-AlreadyConnected - соединение с сервером уже установлено
-ImpossibleToConnect - не удаёться установить соединение с сервером.
-ConnectionLost - соединение было прервано.
-Disconnected вызывается при отключении от сервера клиентом. Например вручную вызвали метод Disconnect().
+The `ConnectionSuccessful` event is triggered when a connection to the server 
+is successful. `Disconnected` is triggered when the client disconnects, 
+for example, if the `Disconnect()` method is called manually.
+`LogCall` is used to display logs, similar to the server.
+
 
 ## 📖 Dataframes
 
 ### ⚠️ Initialize ⚠️
 
-**Обязательно** нужно вызвать инициализацию пакетов при самом старте
-приложения. Чтобы была создана коллекция из них. При этом указав текущую сборку проекта в котором будут
-создаваться датафреймы.
+It is necessary to initialize the packets at the start of the application 
+to create a collection of them. Specify the current project assembly 
+in which the dataframes will be created.
 
 ```c#
 NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
 ```
 ### Sending
 
-Для того чтобы создать пакет (в NetFrame они называються датафреймами). Нужно создать структуру которая реализует интерфейс INetworkDataframe.
-Например:
+To create a packet (called dataframes in NetFrame), you need to create a 
+structure that implements the `INetworkDataframe` interface. For example:
 
 ```c#
 public struct TestDataframe : INetworkDataframe
@@ -122,8 +133,9 @@ public struct TestDataframe : INetworkDataframe
 }
 ```
 
-Датафреймы для записи и чтения поддерживают все стандартные C# типы. Чтобы отправить датафрейм с клиента на сервер, нужно
-создать экземпляр датафрейма и вызвать метод _client.Send().
+Dataframes for reading and writing support all standard C# types. 
+To send a data frame from the client to the server, create an instance 
+of the data frame and call the `_client.Send()` method.
 
 ```c#
 var testDataframe = new TestDataframe
@@ -134,9 +146,9 @@ var testDataframe = new TestDataframe
 _client.Send(ref testDataframe);
 ```
 
-На сервер аналогично нужно вызвать метод _server.Send()
-для отправки клиенту с конкретным id либо отправить сразу всем
-клиентам с помощью _server.SendAll().
+On the server, you should call the `_server.Send()` method to send to a 
+specific client with a specific ID or send to all clients at once using
+`_server.SendAll()`.
 
 ```c#
 var testDataframe = new TestDataframe
@@ -150,8 +162,9 @@ _server.SendAll(ref testDataframe); //send to all clients
 
 ### Listen
 
-На клиенте и сервере чтобы подписаться или отписаться на событие получения пакета нужно
-использовать методы Subscribe и Unsubscribe соответственно.
+To subscribe or unsubscribe to the event of receiving a packet on the client 
+and server, you need to use the `Subscribe` and `Unsubscribe` methods, 
+respectively.
 
 ```c#
 _client.Subscribe<TestDataframe>(TestDataframeHandler);
@@ -159,7 +172,8 @@ _client.Subscribe<TestDataframe>(TestDataframeHandler);
 _client.Unsubscribe<TestDataframe>(TestDataframeHandler);
 ```
 
-Также нужно определить метод обработчик этого события. Например:
+You also need to define a handler method for this event. For example:
+
 ```c#
 private void TestDataframeHandler(TestDataframe dataframe)
 {
@@ -167,8 +181,8 @@ private void TestDataframeHandler(TestDataframe dataframe)
 }
 ```
 
-На сервер все тоже самое. За исключением того
-что в методе обработчике будет Id клиента:
+On the server, it is the same, except that the client's Id will be passed 
+to the handler method:
 
 ```c#
 private void TestDataframeHandler(TestDataframe dataframe, int id)
@@ -179,8 +193,8 @@ private void TestDataframeHandler(TestDataframe dataframe, int id)
 
 ## 📖 Sending a collection in a dataframe
 
-Сначала нужно создать структуру, которая будет является
-элементом коллекции. Нужно реализовать интерфейсы `IWriteable` и `IReadable`.
+First, create a structure that will be an element of the collection. 
+Implement the `IWriteable` and `IReadable` interfaces.
 
 ```c#
 public struct UserNetworkModel : IWriteable, IReadable
@@ -203,8 +217,9 @@ public struct UserNetworkModel : IWriteable, IReadable
 }
 ```
 
-Далее нужно определить датафрейм с коллекцией, например типа List
-следующим образом:
+Next, define a dataframe with the collection, for example, a `List` type, 
+as follows:
+
 ```c#
 public struct UsersDataframe : INetworkDataframe
 {
@@ -240,5 +255,5 @@ public struct UsersDataframe : INetworkDataframe
 }
 ```
 
-По этой же аналогии можно реализовать датафреймы
-с коллекциями Dictionary и любых других типов.
+Using the same analogy, you can implement data frames with collections of
+`Dictionary` and other types.

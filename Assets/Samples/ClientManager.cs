@@ -10,7 +10,7 @@ namespace Samples
 {
     public class ClientManager : MonoBehaviour
     {
-        private string _ipAddress = "192.168.31.103"; //"127.0.0.1"
+        private readonly string _ipAddress = "127.0.0.1";
 
         private NetFrameClient _netFrameClient;
 
