@@ -3,10 +3,9 @@ using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Dataframes;
-using Samples.DataframesForRealtime;
 using UnityEngine;
 
-namespace Samples
+namespace Examples
 {
     public class ClientManager : MonoBehaviour
     {
@@ -111,11 +110,6 @@ namespace Samples
         private void TestClientDisconnectDataframeHandler(TestClientDisconnectDataframe dataframe)
         {
             Debug.LogError($"Client Disconnect to server ---> {dataframe.ClientId}");
-        }
-        
-        private void PlayerMoveDataframeHandler(PlayerMoveDataframe dataframe)
-        {
-            //playerController.NetFrameTransform.AddNetworkDataframeTransform(dataframe);
         }
 
         private void OnDestroy()

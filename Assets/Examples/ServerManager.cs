@@ -7,7 +7,7 @@ using Samples.Dataframes;
 using Samples.Dataframes.Collections;
 using UnityEngine;
 
-namespace Samples
+namespace Examples
 {
     public class ServerManager : MonoBehaviour
     {
