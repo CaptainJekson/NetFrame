@@ -146,9 +146,10 @@ var testDataframe = new TestDataframe
 _client.Send(ref testDataframe);
 ```
 
-On the server, you should call the `_server.Send()` method to send to a 
-specific client with a specific ID or send to all clients at once using
-`_server.SendAll()`.
+On the server, you should call the `_server.Send()` method to send 
+to a specific client with a specific identifier or send to all 
+clients simultaneously using `_server.SendAll()`. You can also use
+`SendAllExcept()` to send to all clients except one.
 
 ```c#
 var testDataframe = new TestDataframe
