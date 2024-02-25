@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Examples
 {
-    public class ServerManager : MonoBehaviour
+    public class ServerManager : MonoBehaviour//
     {
         public static ServerManager Instance;
         
