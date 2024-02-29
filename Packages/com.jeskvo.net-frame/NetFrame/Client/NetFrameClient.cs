@@ -2,12 +2,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using UnityEngine;
 
 namespace NetFrame.Client
 {
@@ -19,6 +21,9 @@ namespace NetFrame.Client
         private readonly int _maxMessageSize;
         private readonly int _sendTimeout = 5000;
         private readonly int _receiveTimeout = 0;
+
+        private string _ip;
+        private int _port;
         
         private ClientConnectionState _clientConnectionState;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
@@ -31,6 +36,7 @@ namespace NetFrame.Client
         public int ReceivePipeCount => _clientConnectionState != null ? _clientConnectionState.ReceiveQueue.TotalCount : 0;
 
         public event Action ConnectionSuccessful;
+        public event Action<int> ReadLocalConnectionIdSuccessful;
         public event Action Disconnected;
         public event Action<NetworkLogType, string> LogCall;
 
@@ -42,9 +48,12 @@ namespace NetFrame.Client
             _writer = new NetFrameWriter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
-        
+
         public void Connect(string ip, int port)
         {
+            _ip = ip;
+            _port = port;
+            
             if (Connecting || Connected)
             {
                 LogCall?.Invoke(NetworkLogType.Warning, "[NetFrameClient.Connect] Client can not create connection because an existing connection is connecting or connected");
@@ -62,6 +71,8 @@ namespace NetFrame.Client
             
             _clientConnectionState.ReceiveThread.IsBackground = true;
             _clientConnectionState.ReceiveThread.Start();
+            
+            
         }
 
         public void Disconnect()
@@ -167,7 +178,7 @@ namespace NetFrame.Client
                 sendThread.IsBackground = true;
                 sendThread.Start();
                 
-                ThreadFunctions.ReceiveLoop(0, state.TcpClient, maxMessageSize, state.ReceiveQueue, receiveQueueLimit);
+                ThreadFunctions.ReceiveLoop(state.LocalConnectionId, state.TcpClient, maxMessageSize, state.ReceiveQueue, receiveQueueLimit);
             }
             catch (SocketException exception)
             {
@@ -239,6 +250,14 @@ namespace NetFrame.Client
                 return;
             }
 
+            var firstByte = allBytes[0];
+
+            if (firstByte == '#')
+            {
+                ReadLocalConnectionId(allBytes);
+                return;
+            }
+
             var tempIndex = 0;
             for (var index = 0; index < allBytes.Length; index++)
             {
@@ -276,6 +295,43 @@ namespace NetFrame.Client
                     handler.DynamicInvoke(dataframe);
                 }
             }
+        }
+
+        private void ReadLocalConnectionId(byte[] allBytes)
+        {
+            var localConnectionId = BitConverter.ToInt32(allBytes, 1);
+            ReadLocalConnectionIdSuccessful?.Invoke(localConnectionId);
+            
+            _clientConnectionState.LocalConnectionId = localConnectionId;
+
+            ConnectUdp(localConnectionId);
+        }
+
+        //полученный id который присвоил сервер, пересылаем серверу через udp
+        //чтобы сервер узнал какой endPoint upd у клиента с этим id
+        private void ConnectUdp(int localConnectionId)
+        {
+            _clientConnectionState.UdpClient = new UdpClient();
+            var remotePoint = new IPEndPoint(IPAddress.Parse(_ip), _port);
+            
+            var bytes = BitConverter.GetBytes(localConnectionId);
+            
+            _clientConnectionState.UdpClient.Send(bytes, bytes.Length, remotePoint);
+            
+            //todo тут же сразу прослушиваем что пришло от сервера
+            _clientConnectionState.UdpClient.BeginReceive(ReceiveUdpCallback, null);
+        }
+        
+        private void ReceiveUdpCallback(IAsyncResult result) //todo
+        {
+            IPEndPoint endPoint = null;
+            
+            var bytes = _clientConnectionState.UdpClient.EndReceive(result, ref endPoint);
+
+            var number = BitConverter.ToInt32(bytes);
+            Debug.LogError($"{number}");
+            
+            _clientConnectionState.UdpClient.BeginReceive(ReceiveUdpCallback, null);
         }
     }
 }

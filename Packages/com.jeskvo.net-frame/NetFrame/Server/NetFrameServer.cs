@@ -10,6 +10,8 @@ using NetFrame.Enums;
 using NetFrame.Queues;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
+using UnityEngine;
+using Random = UnityEngine.Random;
 using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.Server
@@ -76,7 +78,10 @@ namespace NetFrame.Server
             _listenerThread.IsBackground = true;
             _listenerThread.Priority = ThreadPriority.BelowNormal;
             _listenerThread.Start();
-
+            
+            _udpServer = new UdpClient(port); //todo
+            _udpServer.BeginReceive(ReceiveUdpCallback, null);
+            
             return true;
         }
 
@@ -282,6 +287,8 @@ namespace NetFrame.Server
                     ConnectionState connection = new ConnectionState(tcpClient, _maxMessageSize);
                     _clients[connectionId] = connection;
 
+                    SendConnectionId(connectionId);
+
                     Thread sendThread = new Thread(() =>
                     {
                         try
@@ -328,6 +335,18 @@ namespace NetFrame.Server
             {
                 LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server Exception: " + exception);
             }
+        }
+
+        private void SendConnectionId(int connectionId)
+        {
+            var header = new[]
+            {
+                (byte)'#',
+            };
+
+            var connectionIdBytes = BitConverter.GetBytes(connectionId);
+            var allData = header.Concat(connectionIdBytes).ToArray();
+            Send(connectionId, allData);
         }
 
         private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
@@ -404,6 +423,35 @@ namespace NetFrame.Server
                     handler.DynamicInvoke(dataframe, clientId);
                 }
             }
+        }
+
+        private void ReceiveUdpCallback(IAsyncResult result) //todo
+        {
+            IPEndPoint endPoint = null;
+            
+            var bytes = _udpServer.EndReceive(result, ref endPoint);
+
+            try
+            {
+                var connectionId = BitConverter.ToInt32(bytes);   Debug.LogError($"connectionId {connectionId}");
+
+                if (_clients.TryGetValue(connectionId, out var connectionState))
+                {
+                    connectionState.UdpClient = new UdpClient();
+                    connectionState.UdpClient.Connect(endPoint);
+                    Debug.LogError($"connectionId = {connectionId}");
+                    
+                    //todo send test
+                    var responseBytes = BitConverter.GetBytes(888);
+                    connectionState.UdpClient.Send(responseBytes, responseBytes.Length);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
+            
+            _udpServer.BeginReceive(ReceiveUdpCallback, null);
         }
     }
 }

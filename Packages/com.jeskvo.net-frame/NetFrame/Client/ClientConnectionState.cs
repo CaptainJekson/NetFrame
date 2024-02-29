@@ -8,7 +8,8 @@ namespace NetFrame.Client
     public class ClientConnectionState : ConnectionState
     {
         public Thread ReceiveThread;
-
+        public int LocalConnectionId;
+        
         public bool Connected => TcpClient != null &&
                                  TcpClient.Client != null &&
                                  TcpClient.Client.Connected;

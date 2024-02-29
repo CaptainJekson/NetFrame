@@ -69,7 +69,7 @@ namespace Examples
                 Nickname = "Mega_nagibator",
             };
             //_client.Send(ref dataframe);
-            Debug.Log("Connected Successful to server");
+            Debug.Log($"Connected Successful to server");
         }
         
         private void OnLog(NetworkLogType reason, string value)
