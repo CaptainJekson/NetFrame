@@ -234,6 +234,8 @@ public struct UsersDataframe : INetworkDataframe
 
        if (hasUsers)
        {
+           writer.WriteInt(Users.Count);
+
            foreach (var user in Users)
            {
                writer.Write(user);
