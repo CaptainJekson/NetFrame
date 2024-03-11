@@ -229,7 +229,7 @@ public struct UsersDataframe : INetworkDataframe
 
     public void Write(NetFrameWriter writer)
     {
-       hasUsers = Users != null;
+       var hasUsers = Users != null;
        writer.WriteBool(hasUsers);
 
        if (hasUsers)
