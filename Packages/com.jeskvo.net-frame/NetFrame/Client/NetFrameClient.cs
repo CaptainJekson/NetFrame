@@ -354,16 +354,16 @@ namespace NetFrame.Client
         //     _clientConnectionState.UdpClient.Send(bytes, bytes.Length);
         // }
         
-        private void ReceiveUdpCallback(IAsyncResult result) //todo
-        {
-            IPEndPoint endPoint = null;
-            
-            var bytes = _clientConnectionState.UdpClient.EndReceive(result, ref endPoint);
-
-            var number = BitConverter.ToInt32(bytes);
-            //Debug.LogError($"{number}");
-            
-            _clientConnectionState.UdpClient.BeginReceive(ReceiveUdpCallback, null);
-        }
+        // private void ReceiveUdpCallback(IAsyncResult result) //todo
+        // {
+        //     IPEndPoint endPoint = null;
+        //     
+        //     var bytes = _clientConnectionState.UdpClient.EndReceive(result, ref endPoint);
+        //
+        //     var number = BitConverter.ToInt32(bytes);
+        //     //Debug.LogError($"{number}");
+        //     
+        //     _clientConnectionState.UdpClient.BeginReceive(ReceiveUdpCallback, null);
+        // }
     }
 }

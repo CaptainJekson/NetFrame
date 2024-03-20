@@ -7,7 +7,7 @@ namespace NetFrame.Server
     public class ConnectionState
     {
         public TcpClient TcpClient;
-        public UdpClient UdpClient;
+        //public UdpClient UdpClient;
         public readonly SendQueue SendQueue;
         
         public readonly ManualResetEvent SendPending;
