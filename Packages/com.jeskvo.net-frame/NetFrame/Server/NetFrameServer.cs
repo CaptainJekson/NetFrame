@@ -10,8 +10,6 @@ using NetFrame.Enums;
 using NetFrame.Queues;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using UnityEngine;
-using Random = UnityEngine.Random;
 using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.Server
@@ -79,8 +77,8 @@ namespace NetFrame.Server
             _listenerThread.Priority = ThreadPriority.BelowNormal;
             _listenerThread.Start();
             
-            _udpServer = new UdpClient(port); //todo
-            _udpServer.BeginReceive(ReceiveUdpCallback, null);
+            // _udpServer = new UdpClient(port); //todo
+            // _udpServer.BeginReceive(ReceiveUdpCallback, null);
             
             return true;
         }
@@ -293,7 +291,7 @@ namespace NetFrame.Server
                     {
                         try
                         {
-                            ThreadFunctions.SendLoop(connectionId, tcpClient, connection.SendQueue, connection.SendPending);
+                            ThreadTcpFunctions.SendLoop(connectionId, tcpClient, connection.SendQueue, connection.SendPending);
                         }
                         catch (ThreadAbortException)
                         {
@@ -311,7 +309,7 @@ namespace NetFrame.Server
                     {
                         try
                         {
-                            ThreadFunctions.ReceiveLoop(connectionId, tcpClient, _maxMessageSize, _receiveQueue, _receiveQueueLimit);
+                            ThreadTcpFunctions.ReceiveTcpLoop(connectionId, tcpClient, _maxMessageSize, _receiveQueue, _receiveQueueLimit);
                             sendThread.Interrupt();
                         }
                         catch (Exception exception)
@@ -425,33 +423,33 @@ namespace NetFrame.Server
             }
         }
 
-        private void ReceiveUdpCallback(IAsyncResult result) //todo
-        {
-            IPEndPoint endPoint = null;
-            
-            var bytes = _udpServer.EndReceive(result, ref endPoint);
-
-            try
-            {
-                var connectionId = BitConverter.ToInt32(bytes);   Debug.LogError($"connectionId {connectionId}");
-
-                if (_clients.TryGetValue(connectionId, out var connectionState))
-                {
-                    connectionState.UdpClient = new UdpClient();
-                    connectionState.UdpClient.Connect(endPoint);
-                    Debug.LogError($"connectionId = {connectionId}");
-                    
-                    //todo send test
-                    var responseBytes = BitConverter.GetBytes(888);
-                    connectionState.UdpClient.Send(responseBytes, responseBytes.Length);
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(e);
-            }
-            
-            _udpServer.BeginReceive(ReceiveUdpCallback, null);
-        }
+        // private void ReceiveUdpCallback(IAsyncResult result) //todo
+        // {
+        //     IPEndPoint endPoint = null;
+        //     
+        //     var bytes = _udpServer.EndReceive(result, ref endPoint);
+        //
+        //     try
+        //     {
+        //         var connectionId = BitConverter.ToInt32(bytes);   Debug.LogError($"connectionId {connectionId}");
+        //
+        //         if (_clients.TryGetValue(connectionId, out var connectionState))
+        //         {
+        //             connectionState.UdpClient = new UdpClient();
+        //             connectionState.UdpClient.Connect(endPoint);
+        //             Debug.LogError($"connectionId = {connectionId}");
+        //             
+        //             //todo send test
+        //             var responseBytes = BitConverter.GetBytes(888);
+        //             connectionState.UdpClient.Send(responseBytes, responseBytes.Length);
+        //         }
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Debug.LogError(e);
+        //     }
+        //     
+        //     _udpServer.BeginReceive(ReceiveUdpCallback, null);
+        // }
     }
 }
