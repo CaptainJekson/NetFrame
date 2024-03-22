@@ -2,7 +2,7 @@ using NetFrame.WriteAndRead;
 
 namespace NetFrame
 {
-    public interface IReadable
+    public interface IReadable//
     {
         void Read(NetFrameReader reader);
     }

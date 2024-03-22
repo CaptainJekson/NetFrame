@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -19,7 +20,7 @@ namespace NetFrame.Client
         private readonly int _maxMessageSize;
         private readonly int _sendTimeout = 5000;
         private readonly int _receiveTimeout = 0;
-        
+
         private ClientConnectionState _clientConnectionState;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         private readonly NetFrameWriter _writer;
@@ -30,7 +31,7 @@ namespace NetFrame.Client
         
         public int ReceivePipeCount => _clientConnectionState != null ? _clientConnectionState.ReceiveQueue.TotalCount : 0;
 
-        public event Action ConnectionSuccessful;
+        public event Action<int> ConnectionSuccessful;
         public event Action Disconnected;
         public event Action<NetworkLogType, string> LogCall;
 
@@ -42,7 +43,7 @@ namespace NetFrame.Client
             _writer = new NetFrameWriter();
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
-        
+
         public void Connect(string ip, int port)
         {
             if (Connecting || Connected)
@@ -55,13 +56,20 @@ namespace NetFrame.Client
             _clientConnectionState.Connecting = true;
             _clientConnectionState.TcpClient.Client = null;
             
-            _clientConnectionState.ReceiveThread = new Thread(() => 
+            _clientConnectionState.ReceiveTcpThread = new Thread(() => 
             {
-                ReceiveThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
+                ReceiveTcpThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
             });
             
-            _clientConnectionState.ReceiveThread.IsBackground = true;
-            _clientConnectionState.ReceiveThread.Start();
+            _clientConnectionState.ReceiveTcpThread.IsBackground = true;
+            _clientConnectionState.ReceiveTcpThread.Start();
+
+            // _clientConnectionState.ReceiveUpdThread = new Thread(() =>
+            // {
+            //     ReceiveUpdThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
+            // });
+            // _clientConnectionState.ReceiveUpdThread.IsBackground = true;
+            // _clientConnectionState.ReceiveUpdThread.Start();
         }
 
         public void Disconnect()
@@ -129,7 +137,6 @@ namespace NetFrame.Client
                     switch (eventType)
                     {
                         case NetworkEventType.Connected:
-                            ConnectionSuccessful?.Invoke();
                             break;
                         case NetworkEventType.Data:
                             BeginReadDataframe(message);
@@ -150,7 +157,7 @@ namespace NetFrame.Client
             return _clientConnectionState.ReceiveQueue.TotalCount;
         }
         
-        private void ReceiveThreadFunction(ClientConnectionState state, string ip, int port, int maxMessageSize, 
+        private void ReceiveTcpThreadFunction(ClientConnectionState state, string ip, int port, int maxMessageSize, 
             bool noDelay, int sendTimeout, int receiveTimeout, int receiveQueueLimit)
         {
             Thread sendThread = null;
@@ -163,11 +170,11 @@ namespace NetFrame.Client
                 state.TcpClient.SendTimeout = sendTimeout;
                 state.TcpClient.ReceiveTimeout = receiveTimeout;
                 
-                sendThread = new Thread(() => { ThreadFunctions.SendLoop(0, state.TcpClient, state.SendQueue, state.SendPending); });
+                sendThread = new Thread(() => { ThreadTcpFunctions.SendLoop(0, state.TcpClient, state.SendQueue, state.SendPending); });
                 sendThread.IsBackground = true;
                 sendThread.Start();
                 
-                ThreadFunctions.ReceiveLoop(0, state.TcpClient, maxMessageSize, state.ReceiveQueue, receiveQueueLimit);
+                ThreadTcpFunctions.ReceiveTcpLoop(state.LocalConnectionId, state.TcpClient, maxMessageSize, state.ReceiveQueue, receiveQueueLimit);
             }
             catch (SocketException exception)
             {
@@ -187,7 +194,7 @@ namespace NetFrame.Client
             }
             catch (Exception exception)
             {
-                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveThreadFunction] Exception: " + exception);
+                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveTcpThreadFunction] Exception: " + exception);
             }
             
             //state.receivePipe.Enqueue(0, EventType.Disconnected, default);// из за этого событие дисконнекта срабатывает два раза
@@ -196,6 +203,51 @@ namespace NetFrame.Client
             state.Connecting = false;
             state.TcpClient?.Close();
         }
+
+        // private void ReceiveUpdThreadFunction(ClientConnectionState state, string ip, int port, int maxMessageSize, 
+        //     bool noDelay, int sendTimeout, int receiveTimeout, int receiveQueueLimit)
+        // {
+        //     try
+        //     {
+        //         _clientConnectionState.UdpClient = new UdpClient();
+        //         _clientConnectionState.UdpClient.Connect(ip, port);
+        //         
+        //         _clientConnectionState.UdpClient.Client.NoDelay = noDelay;
+        //         _clientConnectionState.UdpClient.Client.SendTimeout = sendTimeout;
+        //         _clientConnectionState.UdpClient.Client.ReceiveTimeout = receiveTimeout;
+        //         
+        //         //todo сделать считывание по нормальному
+        //         _clientConnectionState.UdpClient.BeginReceive(ReceiveUdpCallback, null);
+        //         
+        //         //SendThread ???
+        //         //ThreadFunctions.ReceiveTcpLoop(state.LocalConnectionId, state.TcpClient, maxMessageSize, state.ReceiveQueue, receiveQueueLimit);
+        //         
+        //         //ThreadUpdFunctions
+        //         
+        //     }
+        //     catch (SocketException exception)
+        //     {
+        //         LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveUpdThreadFunction]: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception);
+        //     }catch (ThreadInterruptedException)
+        //     {
+        //         // expected if Disconnect() aborts it
+        //     }
+        //     catch (ThreadAbortException)
+        //     {
+        //         
+        //     }
+        //     catch (ObjectDisposedException)
+        //     {
+        //   
+        //     }
+        //     catch (Exception exception)
+        //     {
+        //         LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveUpdThreadFunction] Exception: " + exception);
+        //     }
+        //
+        //     state.Connecting = false;
+        //     state.UdpClient?.Close();
+        // }
 
         private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
         {
@@ -214,12 +266,10 @@ namespace NetFrame.Client
                         _clientConnectionState.SendPending.Set();
                         return true;
                     }
-                    else
-                    {
-                        LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
-                        _clientConnectionState.TcpClient.Close();
-                        return false;
-                    }
+
+                    LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
+                    _clientConnectionState.TcpClient.Close();
+                    return false;
                 }
         
                 LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.Send] Client.Send: message too big: " + message.Count + ". Limit: " + _maxMessageSize);
@@ -236,6 +286,14 @@ namespace NetFrame.Client
 
             if (allBytes == null)
             {
+                return;
+            }
+
+            var firstByte = allBytes[0];
+
+            if (firstByte == '#')
+            {
+                ReadLocalConnectionId(allBytes);
                 return;
             }
 
@@ -277,5 +335,35 @@ namespace NetFrame.Client
                 }
             }
         }
+
+        private void ReadLocalConnectionId(byte[] allBytes)
+        {
+            var localConnectionId = BitConverter.ToInt32(allBytes, 1);
+            ConnectionSuccessful?.Invoke(localConnectionId);
+            
+            _clientConnectionState.LocalConnectionId = localConnectionId;
+
+            //ConnectUdp(localConnectionId);
+        }
+
+        //полученный id который присвоил сервер, пересылаем серверу через udp
+        //чтобы сервер узнал какой endPoint upd у клиента с этим id
+        // private void ConnectUdp(int localConnectionId)
+        // {
+        //     var bytes = BitConverter.GetBytes(localConnectionId);
+        //     _clientConnectionState.UdpClient.Send(bytes, bytes.Length);
+        // }
+        
+        // private void ReceiveUdpCallback(IAsyncResult result) //todo
+        // {
+        //     IPEndPoint endPoint = null;
+        //     
+        //     var bytes = _clientConnectionState.UdpClient.EndReceive(result, ref endPoint);
+        //
+        //     var number = BitConverter.ToInt32(bytes);
+        //     //Debug.LogError($"{number}");
+        //     
+        //     _clientConnectionState.UdpClient.BeginReceive(ReceiveUdpCallback, null);
+        // }
     }
 }

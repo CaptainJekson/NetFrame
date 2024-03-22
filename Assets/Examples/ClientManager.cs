@@ -62,14 +62,14 @@ namespace Examples
             Debug.Log("Disconnected from the server");
         }
         
-        private void OnConnectionSuccessful()
+        private void OnConnectionSuccessful(int localClientId)
         {
             var dataframe = new TestNicknameDataframe
             {
                 Nickname = "Mega_nagibator",
             };
             //_client.Send(ref dataframe);
-            Debug.Log("Connected Successful to server");
+            Debug.Log($"Connected Successful to server, id {localClientId}");
         }
         
         private void OnLog(NetworkLogType reason, string value)

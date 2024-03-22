@@ -6,7 +6,7 @@ using NetFrame.Queues;
 
 namespace NetFrame.Utils
 {
-    public static class ThreadFunctions
+    public static class ThreadTcpFunctions
     {
         public static bool SendMessagesBlocking(NetworkStream stream, byte[] payload, int packetSize)
         {
@@ -48,7 +48,7 @@ namespace NetFrame.Utils
             return false;
         }
 
-        public static void ReceiveLoop(int connectionId, TcpClient client, int maxMessageSize, ReceiveQueue receiveQueue, int queueLimit)
+        public static void ReceiveTcpLoop(int connectionId, TcpClient client, int maxMessageSize, ReceiveQueue receiveQueue, int queueLimit)
         {
             NetworkStream stream = client.GetStream();
             

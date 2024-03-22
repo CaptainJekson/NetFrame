@@ -7,8 +7,10 @@ namespace NetFrame.Client
 {
     public class ClientConnectionState : ConnectionState
     {
-        public Thread ReceiveThread;
-
+        public Thread ReceiveTcpThread;
+        //public Thread ReceiveUpdThread;
+        public int LocalConnectionId;
+        
         public bool Connected => TcpClient != null &&
                                  TcpClient.Client != null &&
                                  TcpClient.Client.Connected;
@@ -24,7 +26,8 @@ namespace NetFrame.Client
         public void Dispose()
         {
             TcpClient.Close();
-            ReceiveThread?.Interrupt();
+            ReceiveTcpThread?.Interrupt();
+            //ReceiveUpdThread?.Interrupt();
             Connecting = false;
             SendQueue.Clear();
             TcpClient = null;

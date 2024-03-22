@@ -17,7 +17,12 @@ namespace CustomEditor
         {
             if (GUILayout.Button("Migrate .NET"))
             {
-                Process.Start("/bin/bash", "/Users/evgeniyskvortsov/UnityProjects/NetFrame/Assets/sync_changes.sh");
+                Process.Start("/bin/bash", "/Users/evgeniyskvortsov/UnityProjects/NetFrame/Assets/sync_changes_dot_net.sh");
+            }
+
+            if (GUILayout.Button("Migrate Clone"))
+            {
+                Process.Start("/bin/bash", "/Users/evgeniyskvortsov/UnityProjects/NetFrame/Assets/sync_changes_clone.sh");
             }
         }
     }
