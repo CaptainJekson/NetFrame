@@ -26,6 +26,7 @@ namespace NetFrame.Client
         public void Dispose()
         {
             TcpClient.Close();
+            TcpClient.Dispose();
             ReceiveTcpThread?.Interrupt();
             //ReceiveUpdThread?.Interrupt();
             Connecting = false;
