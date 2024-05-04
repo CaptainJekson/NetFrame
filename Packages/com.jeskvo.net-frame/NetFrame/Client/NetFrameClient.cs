@@ -33,6 +33,7 @@ namespace NetFrame.Client
         public event Action<int> ConnectionSuccessful;
         public event Action Disconnected;
         public event Action<NetworkLogType, string> LogCall;
+        public event Action ConnectionFailed;
 
         public NetFrameClient(int maxMessageSize)
         {
@@ -177,7 +178,7 @@ namespace NetFrame.Client
             }
             catch (SocketException exception)
             {
-                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveThreadFunction]: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception);
+                ConnectionFailed?.Invoke();
             }
             catch (ThreadInterruptedException)
             {
