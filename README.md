@@ -88,12 +88,14 @@ every frame for Unity or in an infinite loop for .NET to maintain the session.
 _client.ConnectionSuccessful += OnConnectionSuccessful;
 _client.Disconnected += OnDisconnected;
 _client.LogCall += OnLog;
+_client.ConnectionFailed += OnConnectionFailed;
 ```
 
 The `ConnectionSuccessful` event is triggered when a connection to the server 
 is successful. `Disconnected` is triggered when the client disconnects, 
 for example, if the `Disconnect()` method is called manually.
 `LogCall` is used to display logs, similar to the server.
+`ConnectionFailed` called when there is an error connecting to the server
 
 
 ## 📖 Dataframes
