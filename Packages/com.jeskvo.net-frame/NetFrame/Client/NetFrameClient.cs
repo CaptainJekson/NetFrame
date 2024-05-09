@@ -34,6 +34,8 @@ namespace NetFrame.Client
         public event Action Disconnected;
         public event Action<NetworkLogType, string> LogCall;
         public event Action ConnectionFailed;
+        
+        private ConcurrentQueue<Action> Tasks = new();
 
         public NetFrameClient(int maxMessageSize)
         {
@@ -63,13 +65,6 @@ namespace NetFrame.Client
             
             _clientConnectionState.ReceiveTcpThread.IsBackground = true;
             _clientConnectionState.ReceiveTcpThread.Start();
-
-            // _clientConnectionState.ReceiveUpdThread = new Thread(() =>
-            // {
-            //     ReceiveUpdThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
-            // });
-            // _clientConnectionState.ReceiveUpdThread.IsBackground = true;
-            // _clientConnectionState.ReceiveUpdThread.Start();
         }
 
         public void Disconnect()
@@ -153,7 +148,15 @@ namespace NetFrame.Client
                     break;
                 }
             }
-            
+
+            if (Tasks.Count > 0)
+            {
+                if (Tasks.TryDequeue(out var action))
+                {
+                    action?.Invoke();
+                }
+            }
+
             return _clientConnectionState.ReceiveQueue.TotalCount;
         }
         
@@ -178,7 +181,10 @@ namespace NetFrame.Client
             }
             catch (SocketException exception)
             {
-                ConnectionFailed?.Invoke();
+                MainThreadRun(() =>
+                {
+                    ConnectionFailed?.Invoke();
+                });
             }
             catch (ThreadInterruptedException)
             {
@@ -201,51 +207,11 @@ namespace NetFrame.Client
             state.Connecting = false;
             state.TcpClient?.Close();
         }
-
-        // private void ReceiveUpdThreadFunction(ClientConnectionState state, string ip, int port, int maxMessageSize, 
-        //     bool noDelay, int sendTimeout, int receiveTimeout, int receiveQueueLimit)
-        // {
-        //     try
-        //     {
-        //         _clientConnectionState.UdpClient = new UdpClient();
-        //         _clientConnectionState.UdpClient.Connect(ip, port);
-        //         
-        //         _clientConnectionState.UdpClient.Client.NoDelay = noDelay;
-        //         _clientConnectionState.UdpClient.Client.SendTimeout = sendTimeout;
-        //         _clientConnectionState.UdpClient.Client.ReceiveTimeout = receiveTimeout;
-        //         
-        //         //todo сделать считывание по нормальному
-        //         _clientConnectionState.UdpClient.BeginReceive(ReceiveUdpCallback, null);
-        //         
-        //         //SendThread ???
-        //         //ThreadFunctions.ReceiveTcpLoop(state.LocalConnectionId, state.TcpClient, maxMessageSize, state.ReceiveQueue, receiveQueueLimit);
-        //         
-        //         //ThreadUpdFunctions
-        //         
-        //     }
-        //     catch (SocketException exception)
-        //     {
-        //         LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveUpdThreadFunction]: failed to connect to ip=" + ip + " port=" + port + " reason=" + exception);
-        //     }catch (ThreadInterruptedException)
-        //     {
-        //         // expected if Disconnect() aborts it
-        //     }
-        //     catch (ThreadAbortException)
-        //     {
-        //         
-        //     }
-        //     catch (ObjectDisposedException)
-        //     {
-        //   
-        //     }
-        //     catch (Exception exception)
-        //     {
-        //         LogCall?.Invoke(NetworkLogType.Error, "[NetFrameClient.ReceiveUpdThreadFunction] Exception: " + exception);
-        //     }
-        //
-        //     state.Connecting = false;
-        //     state.UdpClient?.Close();
-        // }
+        
+        private void MainThreadRun(Action task)
+        {
+            Tasks.Enqueue(task);
+        }
 
         private string GetByTypeName<T>(T dataframe) where T : struct, INetworkDataframe
         {
@@ -340,28 +306,6 @@ namespace NetFrame.Client
             ConnectionSuccessful?.Invoke(localConnectionId);
             
             _clientConnectionState.LocalConnectionId = localConnectionId;
-
-            //ConnectUdp(localConnectionId);
         }
-
-        //полученный id который присвоил сервер, пересылаем серверу через udp
-        //чтобы сервер узнал какой endPoint upd у клиента с этим id
-        // private void ConnectUdp(int localConnectionId)
-        // {
-        //     var bytes = BitConverter.GetBytes(localConnectionId);
-        //     _clientConnectionState.UdpClient.Send(bytes, bytes.Length);
-        // }
-        
-        // private void ReceiveUdpCallback(IAsyncResult result) //todo
-        // {
-        //     IPEndPoint endPoint = null;
-        //     
-        //     var bytes = _clientConnectionState.UdpClient.EndReceive(result, ref endPoint);
-        //
-        //     var number = BitConverter.ToInt32(bytes);
-        //     //Debug.LogError($"{number}");
-        //     
-        //     _clientConnectionState.UdpClient.BeginReceive(ReceiveUdpCallback, null);
-        // }
     }
 }

@@ -23,8 +23,7 @@ namespace NetFrame.Server
         private readonly int _receiveTimeout = 0;
         private readonly bool _noDelay = true;
         private readonly int _maxMessageSize;
-
-        private UdpClient _udpServer;
+        
         private TcpListener _tcpListener;
         private Thread _listenerThread;
         private ReceiveQueue _receiveQueue;
@@ -76,10 +75,7 @@ namespace NetFrame.Server
             _listenerThread.IsBackground = true;
             _listenerThread.Priority = ThreadPriority.BelowNormal;
             _listenerThread.Start();
-            
-            // _udpServer = new UdpClient(port); //todo
-            // _udpServer.BeginReceive(ReceiveUdpCallback, null);
-            
+
             return true;
         }
 
@@ -422,34 +418,5 @@ namespace NetFrame.Server
                 }
             }
         }
-
-        // private void ReceiveUdpCallback(IAsyncResult result) //todo
-        // {
-        //     IPEndPoint endPoint = null;
-        //     
-        //     var bytes = _udpServer.EndReceive(result, ref endPoint);
-        //
-        //     try
-        //     {
-        //         var connectionId = BitConverter.ToInt32(bytes);   Debug.LogError($"connectionId {connectionId}");
-        //
-        //         if (_clients.TryGetValue(connectionId, out var connectionState))
-        //         {
-        //             connectionState.UdpClient = new UdpClient();
-        //             connectionState.UdpClient.Connect(endPoint);
-        //             Debug.LogError($"connectionId = {connectionId}");
-        //             
-        //             //todo send test
-        //             var responseBytes = BitConverter.GetBytes(888);
-        //             connectionState.UdpClient.Send(responseBytes, responseBytes.Length);
-        //         }
-        //     }
-        //     catch (Exception e)
-        //     {
-        //         Debug.LogError(e);
-        //     }
-        //     
-        //     _udpServer.BeginReceive(ReceiveUdpCallback, null);
-        // }
     }
 }

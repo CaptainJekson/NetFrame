@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Threading;
 using NetFrame.Client;
 using NetFrame.Enums;
 using NetFrame.Utils;
@@ -24,11 +25,17 @@ namespace Examples
             _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
             _netFrameClient.LogCall += OnLog;
             _netFrameClient.Disconnected += OnDisconnected;
+            _netFrameClient.ConnectionFailed += OnConnectionFailed;
             
             _netFrameClient.Subscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
             _netFrameClient.Subscribe<UsersNetworkDataframe>(UsersDataframeHandler);
             _netFrameClient.Subscribe<TestClientConnectedDataframe>(TestClientConnectedDataframeHandler);
             _netFrameClient.Subscribe<TestClientDisconnectDataframe>(TestClientDisconnectDataframeHandler);
+        }
+
+        private void OnConnectionFailed()
+        {
+            Debug.LogError($"thread id = {Thread.CurrentThread.ManagedThreadId}");
         }
 
         private void Update()
@@ -117,6 +124,7 @@ namespace Examples
             _netFrameClient.ConnectionSuccessful -= OnConnectionSuccessful;
             _netFrameClient.LogCall -= OnLog;
             _netFrameClient.Disconnected -= OnDisconnected;
+            _netFrameClient.ConnectionFailed -= OnConnectionFailed;
             
             _netFrameClient.Unsubscribe<TestStringIntNetworkDataframe>(TestByteDataframeHandler);
             _netFrameClient.Unsubscribe<UsersNetworkDataframe>(UsersDataframeHandler);
