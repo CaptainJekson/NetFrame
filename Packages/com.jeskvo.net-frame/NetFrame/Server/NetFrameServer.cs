@@ -6,10 +6,10 @@ using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using NetFrame.Enums;
 using NetFrame.Queues;
 using NetFrame.Utils;
@@ -24,6 +24,7 @@ namespace NetFrame.Server
         private readonly int _sendTimeout = 5000;
         private readonly int _sendQueueLimit = 10000;
         private readonly int _receiveQueueLimit = 10000;
+        private readonly int _authenticatePending = 20000;
 
         private readonly int _receiveTimeout = 0;
         private readonly bool _noDelay = true;
@@ -73,8 +74,6 @@ namespace NetFrame.Server
             {
                 _isConnectionProtection = true;
                 _certificate = new X509Certificate2(certificatePath, password);
-                
-                Debug.Log($"pK: {_certificate.PrivateKey == null}"); //todo если true значит приватного ключа нет
             }
             _receiveQueue = new ReceiveQueue(_maxMessageSize);
             _maxClients = maxClients;
@@ -256,38 +255,71 @@ namespace NetFrame.Server
 
         private void ListenConnectionClients(int port)
         {
+            _tcpListener = TcpListener.Create(port);
+            _tcpListener.Server.NoDelay = _noDelay;
+            _tcpListener.Start();
+
+            LogCall?.Invoke(NetworkLogType.Info, $"[NetFrameServer.Listen] Starting server on port {port}");
             try
             {
-                _tcpListener = TcpListener.Create(port);
-                _tcpListener.Server.NoDelay = _noDelay;
-                _tcpListener.Start();
-                
-                LogCall?.Invoke(NetworkLogType.Info, $"[NetFrameServer.Listen] Starting server on port {port}");
                 while (true)
                 {
                     var tcpClient = _tcpListener.AcceptTcpClient();
-                    
-                    if (TryValidateConnection(tcpClient))
+
+                    Task.Run(async () =>
                     {
-                        ClientThreadsStart(tcpClient);
-                    }
+                        await TcpClientHandlerAsync(tcpClient);
+                    });
+                }
+            }
+            catch (SocketException exception)
+            {
+                LogCall?.Invoke(NetworkLogType.Info,
+                    "[NetFrameServer.ListenConnectionClients] Server Thread stopped. That's okay. " + exception);
+            }
+            catch (Exception exception)
+            {
+                LogCall?.Invoke(NetworkLogType.Error,
+                    "[NetFrameServer.ListenConnectionClients] Server thread aborted. That's okay. " + exception);
+            }
+        }
+
+        private async Task TcpClientHandlerAsync(TcpClient tcpClient)
+        {
+            try
+            {
+                if (await TryValidateConnection(tcpClient))
+                {
+                    ClientThreadsStart(tcpClient);
+                }
+                else
+                {
+                    Debug.LogError("Клиент не прошел валидацию сертификатом");
+                    tcpClient.Close();
                 }
             }
             catch (ThreadAbortException exception)
             {
-                LogCall?.Invoke(NetworkLogType.Info, "[NetFrameServer.Listen] Server thread aborted. That's okay. " + exception);
+                LogCall?.Invoke(NetworkLogType.Info,
+                    "[NetFrameServer.TcpClientHandlerAsync] Server thread aborted. That's okay. " + exception);
             }
             catch (SocketException exception)
             {
-                LogCall?.Invoke(NetworkLogType.Info, "[NetFrameServer.Listen] Server Thread stopped. That's okay. " + exception);
+                LogCall?.Invoke(NetworkLogType.Info,
+                    "[NetFrameServer.TcpClientHandlerAsync] Server Thread stopped. That's okay. " + exception);
+            }
+            catch (System.IO.IOException ex) when (ex.Message.Contains("Authentication failed because the remote party has closed the transport stream"))
+            {
+                LogCall?.Invoke(NetworkLogType.Info,
+                    "[NetFrameServer.TcpClientHandlerAsync] Authentication failed because the remote party has closed the transport stream");
             }
             catch (Exception exception)
             {
-                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server Exception: " + exception);
+                LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.TcpClientHandlerAsync] Server Exception: " + exception);
             }
         }
 
-        private bool TryValidateConnection(TcpClient tcpClient)
+        private async Task<bool> TryValidateConnection(TcpClient tcpClient)
         {
             if (!_isConnectionProtection)
             {
@@ -298,20 +330,77 @@ namespace NetFrame.Server
             
             try
             {
-                sslStream.AuthenticateAsServer(_certificate, clientCertificateRequired: false, checkCertificateRevocation: true);
-                Debug.LogError("Sex");
-                return true;
+                var authenticateTask = sslStream.AuthenticateAsServerAsync(_certificate, 
+                    clientCertificateRequired: false, checkCertificateRevocation: true);
+
+                //Checking which completed faster. Delay or authenticate.
+                if (await Task.WhenAny(authenticateTask, Task.Delay(_authenticatePending)) == authenticateTask)
+                {
+                    await authenticateTask;
+                    return true;
+                }
+
+                sslStream.Close();
+                return false;
             }
             catch (AuthenticationException e)
             {
                 sslStream.Close();
-                tcpClient.Close();
-                Debug.LogError("No Sex!");
                 return false;
             }
         }
 
         private void ClientThreadsStart(TcpClient tcpClient)
+        {
+            if (!TryGetNextConnectionId(tcpClient, out var connectionId))
+            {
+                return;
+            }
+
+            tcpClient.NoDelay = _noDelay;
+            tcpClient.SendTimeout = _sendTimeout;
+            tcpClient.ReceiveTimeout = _receiveTimeout;
+
+            var connection = new ConnectionState(tcpClient, _maxMessageSize);
+            _clients[connectionId] = connection;
+
+            SendConnectionId(connectionId);
+
+            var sendThread = new Thread(() =>
+            {
+                try
+                {
+                    ThreadTcpFunctions.SendLoop(connectionId, tcpClient, connection.SendQueue, connection.SendPending);
+                }
+                catch (ThreadAbortException)
+                {
+                }
+                catch (Exception exception)
+                {
+                    LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server send thread exception: " + exception);
+                }
+            });
+            sendThread.IsBackground = true;
+            sendThread.Start();
+
+            var receiveThread = new Thread(() =>
+            {
+                try
+                {
+                    ThreadTcpFunctions.ReceiveTcpLoop(connectionId, tcpClient, _maxMessageSize, _receiveQueue,
+                        _receiveQueueLimit);
+                    sendThread.Interrupt();
+                }
+                catch (Exception exception)
+                {
+                    LogCall?.Invoke(NetworkLogType.Error, "[Telepathy] Server client thread exception: " + exception);
+                }
+            });
+            receiveThread.IsBackground = true;
+            receiveThread.Start();
+        }
+
+        private bool TryGetNextConnectionId(TcpClient tcpClient, out int connectionId)
         {
             if (_clients.Count >= _maxClients)
             {
@@ -329,52 +418,12 @@ namespace NetFrame.Server
                 LogCall?.Invoke(NetworkLogType.Warning,
                     $"[NetFrameServer.Listen] The customer limit has been reached: {_clients.Count}");
 
-                return;
+                connectionId = -1;
+                return false;
             }
 
-            tcpClient.NoDelay = _noDelay;
-            tcpClient.SendTimeout = _sendTimeout;
-            tcpClient.ReceiveTimeout = _receiveTimeout;
-
-            int connectionId = NextConnectionId();
-
-            ConnectionState connection = new ConnectionState(tcpClient, _maxMessageSize);
-            _clients[connectionId] = connection;
-
-            SendConnectionId(connectionId);
-
-            Thread sendThread = new Thread(() =>
-            {
-                try
-                {
-                    ThreadTcpFunctions.SendLoop(connectionId, tcpClient, connection.SendQueue, connection.SendPending);
-                }
-                catch (ThreadAbortException)
-                {
-                }
-                catch (Exception exception)
-                {
-                    LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server send thread exception: " + exception);
-                }
-            });
-            sendThread.IsBackground = true;
-            sendThread.Start();
-
-            Thread receiveThread = new Thread(() =>
-            {
-                try
-                {
-                    ThreadTcpFunctions.ReceiveTcpLoop(connectionId, tcpClient, _maxMessageSize, _receiveQueue,
-                        _receiveQueueLimit);
-                    sendThread.Interrupt();
-                }
-                catch (Exception exception)
-                {
-                    LogCall?.Invoke(NetworkLogType.Error, "[Telepathy] Server client thread exception: " + exception);
-                }
-            });
-            receiveThread.IsBackground = true;
-            receiveThread.Start();
+            connectionId = NextConnectionId();
+            return true;
         }
 
         private void SendConnectionId(int connectionId)
