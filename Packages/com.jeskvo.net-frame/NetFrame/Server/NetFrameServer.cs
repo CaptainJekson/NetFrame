@@ -254,7 +254,14 @@ namespace NetFrame.Server
                 {
                     var tcpClient = _tcpListener.AcceptTcpClient();
 
-                    RunThreadsClient(tcpClient);
+                    if (AuthenticateClient(tcpClient))
+                    {
+                        RunThreadsClient(tcpClient);
+                    }
+                    else
+                    {
+                        tcpClient.Close();
+                    }
                 }
             }
             catch (ThreadAbortException exception)
@@ -269,6 +276,11 @@ namespace NetFrame.Server
             {
                 LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server Exception: " + exception);
             }
+        }
+
+        private bool AuthenticateClient(TcpClient tcpClient) //todo нужно реализовать вот это. Нужно разобраться с RSA ключами и т.д
+        {
+            return true;
         }
 
         private void RunThreadsClient(TcpClient tcpClient)
