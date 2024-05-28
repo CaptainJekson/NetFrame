@@ -24,7 +24,7 @@ namespace Examples
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             _netFrameServer = new NetFrameServer(50000);
             
-            _netFrameServer.Start(8080, 10);
+            _netFrameServer.Start(8080, 10, "cert.pef", "Apercode999");
 
             _netFrameServer.ClientConnection += OnClientConnection;
             _netFrameServer.ClientDisconnect += OnClientDisconnect;
