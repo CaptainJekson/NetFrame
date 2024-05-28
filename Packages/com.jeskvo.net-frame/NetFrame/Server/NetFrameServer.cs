@@ -252,69 +252,9 @@ namespace NetFrame.Server
                 
                 while (true)
                 {
-                    TcpClient tcpClient = _tcpListener.AcceptTcpClient();
+                    var tcpClient = _tcpListener.AcceptTcpClient();
 
-                    if (_clients.Count >= _maxClients)
-                    {
-                        try
-                        {
-                            tcpClient.GetStream().Close();
-                        }
-                        catch
-                        {
-                    
-                        }
-                        
-                        tcpClient.Close();
-                        
-                        LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameServer.Listen] The customer limit has been reached: {_clients.Count}");
-                        
-                        continue;
-                    }
-                    
-                    tcpClient.NoDelay = _noDelay;
-                    tcpClient.SendTimeout = _sendTimeout;
-                    tcpClient.ReceiveTimeout = _receiveTimeout;
-                    
-                    int connectionId = NextConnectionId();
-                    
-                    ConnectionState connection = new ConnectionState(tcpClient, _maxMessageSize);
-                    _clients[connectionId] = connection;
-
-                    SendConnectionId(connectionId);
-
-                    Thread sendThread = new Thread(() =>
-                    {
-                        try
-                        {
-                            ThreadTcpFunctions.SendLoop(connectionId, tcpClient, connection.SendQueue, connection.SendPending);
-                        }
-                        catch (ThreadAbortException)
-                        {
-                            
-                        }
-                        catch (Exception exception)
-                        {
-                            LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server send thread exception: " + exception);
-                        }
-                    });
-                    sendThread.IsBackground = true;
-                    sendThread.Start();
-
-                    Thread receiveThread = new Thread(() =>
-                    {
-                        try
-                        {
-                            ThreadTcpFunctions.ReceiveTcpLoop(connectionId, tcpClient, _maxMessageSize, _receiveQueue, _receiveQueueLimit);
-                            sendThread.Interrupt();
-                        }
-                        catch (Exception exception)
-                        {
-                            LogCall?.Invoke(NetworkLogType.Error, "[Telepathy] Server client thread exception: " + exception);
-                        }
-                    });
-                    receiveThread.IsBackground = true;
-                    receiveThread.Start();
+                    RunThreadsClient(tcpClient);
                 }
             }
             catch (ThreadAbortException exception)
@@ -329,6 +269,71 @@ namespace NetFrame.Server
             {
                 LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server Exception: " + exception);
             }
+        }
+
+        private void RunThreadsClient(TcpClient tcpClient)
+        {
+            if (_clients.Count >= _maxClients)
+            {
+                try
+                {
+                    tcpClient.GetStream().Close();
+                }
+                catch
+                {
+                }
+
+                tcpClient.Close();
+
+                LogCall?.Invoke(NetworkLogType.Warning,
+                    $"[NetFrameServer.Listen] The customer limit has been reached: {_clients.Count}");
+
+                return;
+            }
+
+            tcpClient.NoDelay = _noDelay;
+            tcpClient.SendTimeout = _sendTimeout;
+            tcpClient.ReceiveTimeout = _receiveTimeout;
+
+            int connectionId = NextConnectionId();
+
+            ConnectionState connection = new ConnectionState(tcpClient, _maxMessageSize);
+            _clients[connectionId] = connection;
+
+            SendConnectionId(connectionId);
+
+            Thread sendThread = new Thread(() =>
+            {
+                try
+                {
+                    ThreadTcpFunctions.SendLoop(connectionId, tcpClient, connection.SendQueue, connection.SendPending);
+                }
+                catch (ThreadAbortException)
+                {
+                }
+                catch (Exception exception)
+                {
+                    LogCall?.Invoke(NetworkLogType.Error, "[NetFrameServer.Listen] Server send thread exception: " + exception);
+                }
+            });
+            sendThread.IsBackground = true;
+            sendThread.Start();
+
+            Thread receiveThread = new Thread(() =>
+            {
+                try
+                {
+                    ThreadTcpFunctions.ReceiveTcpLoop(connectionId, tcpClient, _maxMessageSize, _receiveQueue,
+                        _receiveQueueLimit);
+                    sendThread.Interrupt();
+                }
+                catch (Exception exception)
+                {
+                    LogCall?.Invoke(NetworkLogType.Error, "[Telepathy] Server client thread exception: " + exception);
+                }
+            });
+            receiveThread.IsBackground = true;
+            receiveThread.Start();
         }
 
         private void SendConnectionId(int connectionId)
