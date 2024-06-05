@@ -7,11 +7,12 @@ namespace Examples
     public class KeyGenerator : MonoBehaviour
     {
         private NetFrameCryptographer _netFrameCryptographer;
+        private NetFrameRsaKeyGenerator _rsaKeyGenerator;
         
         public void Awake()
         {
             _netFrameCryptographer = new NetFrameCryptographer();
-            _netFrameCryptographer.TestRun();
+            _rsaKeyGenerator = new NetFrameRsaKeyGenerator();
         }
     }
 }

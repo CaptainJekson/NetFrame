@@ -1,64 +1,98 @@
+using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using UnityEngine;
+using System.Xml.Serialization;
 
 namespace NetFrame.Encryption
 {
-    public class NetFrameCryptographer
+    public class NetFrameCryptographer : INetFrameEncryptor, INetFrameDecryptor
     {
-        private UnicodeEncoding _byteConverter;
+        private UnicodeEncoding _byteConverter; 
         
         public NetFrameCryptographer()
         {
             _byteConverter = new UnicodeEncoding();
         }
-        
-        public void TestRun()
-        {
-            byte[] dataToEncrypt = _byteConverter.GetBytes("Привет это я Жендос");
 
-            using (RSACryptoServiceProvider RSA = new RSACryptoServiceProvider())
-            {
-                var encryptedData = Encrypt(dataToEncrypt, RSA.ExportParameters(false), false);
-                Debug.Log($"Encrypt plaintext: {_byteConverter.GetString(encryptedData)}");
-                
-                var decryptedData = Decrypt(encryptedData, RSA.ExportParameters(true), false);
-                Debug.Log($"Decrypted plaintext: {_byteConverter.GetString(decryptedData)}");
-            }
+        /// <summary>
+        /// Encrypts a token using a public key
+        /// </summary>
+        /// <param name="publicParameters">RSA parameters containing public key</param>
+        /// <param name="token">Application token</param>
+        /// <returns></returns>
+        public byte[] EncryptToken(RSAParameters publicParameters, string token)
+        {
+            byte[] tokenToClient = _byteConverter.GetBytes(token);
+
+            using var rsaClient = new RSACryptoServiceProvider();
+            rsaClient.ImportParameters(publicParameters);
+
+            //шифруем используя публичный ключ на КЛИЕНТЕ
+            var encryptedData = Encrypt(tokenToClient, rsaClient.ExportParameters(false), false);
+            return encryptedData;
         }
         
+        /// <summary>
+        /// Decrypt the token using the public and private RSA key on the server
+        /// </summary>
+        /// <param name="privateParameters">RSA parameters containing private and public key</param>
+        /// <param name="encryptedData">Encrypted data from the client</param>
+        /// <returns></returns>
+        public string DecryptToken(RSAParameters privateParameters, byte[] encryptedData)
+        {
+            using var rsaServer = new RSACryptoServiceProvider();
+            rsaServer.ImportParameters(privateParameters);
+            
+            var decryptedData = Decrypt(encryptedData, rsaServer.ExportParameters(true), false);
+            var tokenFromClient = _byteConverter.GetString(decryptedData);
+            return tokenFromClient;
+        }
+
+        public RSAParameters LoadKey(string fullPath)
+        {
+            var xmlParameters = File.ReadAllText(fullPath);
+            var parameters = ImportParametersFromXml(xmlParameters);
+            return parameters;
+        }
+
         private byte[] Encrypt(byte[] DataToEncrypt, RSAParameters RSAKeyInfo, bool DoOAEPPadding)
         {
-            byte[] encryptedData;
-            using (RSACryptoServiceProvider RSA = new RSACryptoServiceProvider())
+            try
             {
+                using var rsa = new RSACryptoServiceProvider();
+                rsa.ImportParameters(RSAKeyInfo);
                 
-                RSA.ImportParameters(RSAKeyInfo);
-                
-                encryptedData = RSA.Encrypt(DataToEncrypt, DoOAEPPadding);
+                var encryptedData = rsa.Encrypt(DataToEncrypt, DoOAEPPadding);
+                return encryptedData;
             }
-            return encryptedData;
+            catch (Exception e)
+            {
+                return Array.Empty<byte>();
+            }
         }
         
         private byte[] Decrypt(byte[] DataToDecrypt, RSAParameters RSAKeyInfo, bool DoOAEPPadding)
         {
-            byte[] decryptedData;
-
-            using (RSACryptoServiceProvider RSA = new RSACryptoServiceProvider())
+            try
             {
-                RSA.ImportParameters(RSAKeyInfo);
+                using var rsa = new RSACryptoServiceProvider();
+                rsa.ImportParameters(RSAKeyInfo);
                 
-                decryptedData = RSA.Decrypt(DataToDecrypt, DoOAEPPadding);
+                var decryptedData = rsa.Decrypt(DataToDecrypt, DoOAEPPadding);
+                return decryptedData;
             }
-            return decryptedData;
-        }
-        
-        private void Export()
-        {
-            using (RSACryptoServiceProvider RSA = new RSACryptoServiceProvider())
+            catch (Exception e)
             {
-                RSAParameters parameters = RSA.ExportParameters(false);
+                return Array.Empty<byte>();
             }
+        }
+
+        private static RSAParameters ImportParametersFromXml(string xml)
+        {
+            var stringReader = new StringReader(xml);
+            var xmlSerializer = new XmlSerializer(typeof(RSAParameters));
+            return (RSAParameters)xmlSerializer.Deserialize(stringReader);
         }
     }
 }
