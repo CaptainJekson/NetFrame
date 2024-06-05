@@ -8,7 +8,7 @@ namespace NetFrame.Encryption
 {
     public class NetFrameCryptographer : INetFrameEncryptor, INetFrameDecryptor
     {
-        private UnicodeEncoding _byteConverter; 
+        private UnicodeEncoding _byteConverter;
         
         public NetFrameCryptographer()
         {
@@ -20,15 +20,14 @@ namespace NetFrame.Encryption
         /// </summary>
         /// <param name="publicParameters">RSA parameters containing public key</param>
         /// <param name="token">Application token</param>
-        /// <returns></returns>
+        /// <returns>Encrypted bytes</returns>
         public byte[] EncryptToken(RSAParameters publicParameters, string token)
         {
             byte[] tokenToClient = _byteConverter.GetBytes(token);
 
             using var rsaClient = new RSACryptoServiceProvider();
             rsaClient.ImportParameters(publicParameters);
-
-            //шифруем используя публичный ключ на КЛИЕНТЕ
+            
             var encryptedData = Encrypt(tokenToClient, rsaClient.ExportParameters(false), false);
             return encryptedData;
         }
@@ -38,7 +37,7 @@ namespace NetFrame.Encryption
         /// </summary>
         /// <param name="privateParameters">RSA parameters containing private and public key</param>
         /// <param name="encryptedData">Encrypted data from the client</param>
-        /// <returns></returns>
+        /// <returns>Decrypted token</returns>
         public string DecryptToken(RSAParameters privateParameters, byte[] encryptedData)
         {
             using var rsaServer = new RSACryptoServiceProvider();
@@ -48,7 +47,12 @@ namespace NetFrame.Encryption
             var tokenFromClient = _byteConverter.GetString(decryptedData);
             return tokenFromClient;
         }
-
+        
+        /// <summary>
+        /// Downloads the RSA key file to the specified path
+        /// </summary>
+        /// <param name="fullPath">Full path to the file</param>
+        /// <returns>RSA key parameters</returns>
         public RSAParameters LoadKey(string fullPath)
         {
             var xmlParameters = File.ReadAllText(fullPath);
