@@ -14,9 +14,21 @@ namespace NetFrame.Encryption
         {
             _byteConverter = new UnicodeEncoding();
         }
+        
+        /// <summary>
+        /// Downloads the RSA key file to the specified path
+        /// </summary>
+        /// <param name="fullPath">Full path to the file</param>
+        /// <returns>RSA key parameters</returns>
+        public RSAParameters LoadKey(string fullPath)
+        {
+            var xmlParameters = File.ReadAllText(fullPath);
+            var parameters = ImportParametersFromXml(xmlParameters);
+            return parameters;
+        }
 
         /// <summary>
-        /// Encrypts a token using a public key
+        /// Encrypts a token using a public key on the client
         /// </summary>
         /// <param name="publicParameters">RSA parameters containing public key</param>
         /// <param name="token">Application token</param>
@@ -46,18 +58,6 @@ namespace NetFrame.Encryption
             var decryptedData = Decrypt(encryptedData, rsaServer.ExportParameters(true), false);
             var tokenFromClient = _byteConverter.GetString(decryptedData);
             return tokenFromClient;
-        }
-        
-        /// <summary>
-        /// Downloads the RSA key file to the specified path
-        /// </summary>
-        /// <param name="fullPath">Full path to the file</param>
-        /// <returns>RSA key parameters</returns>
-        public RSAParameters LoadKey(string fullPath)
-        {
-            var xmlParameters = File.ReadAllText(fullPath);
-            var parameters = ImportParametersFromXml(xmlParameters);
-            return parameters;
         }
 
         private byte[] Encrypt(byte[] DataToEncrypt, RSAParameters RSAKeyInfo, bool DoOAEPPadding)

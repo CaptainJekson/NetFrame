@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Examples
 {
+    //TODO удалить вместе со сценой
     public class KeyGenerator : MonoBehaviour
     {
         private NetFrameCryptographer _netFrameCryptographer;
@@ -11,8 +12,8 @@ namespace Examples
         
         public void Awake()
         {
-            _netFrameCryptographer = new NetFrameCryptographer();
-            _rsaKeyGenerator = new NetFrameRsaKeyGenerator();
+            //_netFrameCryptographer = new NetFrameCryptographer();
+            //_rsaKeyGenerator = new NetFrameRsaKeyGenerator();
         }
     }
 }

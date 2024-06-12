@@ -9,7 +9,7 @@ namespace NetFrame.Encryption
         private const string PrivateRsaKeyFileName = "privateRSAKey.xml";
         private const string PublicRsaKeyFileName = "publicRSAKey.xml";
         
-        public void GenerateKeys(string fullPath) //todo сделаем отдельное консольное приложение генератора этих ключей
+        public void GenerateKeys(string fullPath)
         {
             using var rsa = new RSACryptoServiceProvider();
             WriteToXml(rsa, fullPath, PrivateRsaKeyFileName, true);
