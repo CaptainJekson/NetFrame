@@ -238,7 +238,7 @@ namespace NetFrame.Server
         // disconnect (kick) a client
         public bool Disconnect(int clientId)
         {
-            if (_clients.TryGetValue(clientId, out ConnectionState connection))
+            if (_clients.TryRemove(clientId, out var connection))
             {
                 connection.TcpClient.Close();
                 LogCall?.Invoke(NetworkLogType.Info, "[NetFrameClient.Send] Server.Disconnect connectionId:" + clientId);
