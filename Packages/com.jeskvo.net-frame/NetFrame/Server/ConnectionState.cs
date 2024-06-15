@@ -8,6 +8,7 @@ namespace NetFrame.Server
     {
         public TcpClient TcpClient;
         public readonly SendQueue SendQueue;
+        public CancellationToken ValidatePendingCancellationToken;
         
         public readonly ManualResetEvent SendPending;
 

@@ -254,10 +254,16 @@ namespace NetFrame.Client
             }
 
             var firstByte = allBytes[0];
-
+            
             if (firstByte == '#')
             {
                 ReadLocalConnectionId(allBytes);
+                return;
+            }
+
+            if (firstByte == '@')
+            {
+                //SendSecurityToken();
                 return;
             }
 
