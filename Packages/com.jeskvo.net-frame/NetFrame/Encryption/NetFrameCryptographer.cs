@@ -60,14 +60,14 @@ namespace NetFrame.Encryption
             return tokenFromClient;
         }
 
-        private byte[] Encrypt(byte[] DataToEncrypt, RSAParameters RSAKeyInfo, bool DoOAEPPadding)
+        private byte[] Encrypt(byte[] dataToEncrypt, RSAParameters RSAKeyInfo, bool doOAEPPadding)
         {
             try
             {
                 using var rsa = new RSACryptoServiceProvider();
                 rsa.ImportParameters(RSAKeyInfo);
                 
-                var encryptedData = rsa.Encrypt(DataToEncrypt, DoOAEPPadding);
+                var encryptedData = rsa.Encrypt(dataToEncrypt, doOAEPPadding);
                 return encryptedData;
             }
             catch (Exception e)
@@ -76,14 +76,14 @@ namespace NetFrame.Encryption
             }
         }
         
-        private byte[] Decrypt(byte[] DataToDecrypt, RSAParameters RSAKeyInfo, bool DoOAEPPadding)
+        private byte[] Decrypt(byte[] dataToDecrypt, RSAParameters RSAKeyInfo, bool doOAEPPadding)
         {
             try
             {
                 using var rsa = new RSACryptoServiceProvider();
                 rsa.ImportParameters(RSAKeyInfo);
                 
-                var decryptedData = rsa.Decrypt(DataToDecrypt, DoOAEPPadding);
+                var decryptedData = rsa.Decrypt(dataToDecrypt, doOAEPPadding);
                 return decryptedData;
             }
             catch (Exception e)

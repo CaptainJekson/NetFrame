@@ -3,8 +3,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using NetFrame.Encryption;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
@@ -24,6 +26,12 @@ namespace NetFrame.Client
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         private readonly NetFrameWriter _writer;
         private NetFrameReader _reader;
+        
+        //Connection security
+        private INetFrameEncryptor _netFrameEncryptor;
+        private RSAParameters _rsaParameters;
+        private string _securityToken;
+        private bool _isConnectionProtection;
 
         private bool Connected => _clientConnectionState != null && _clientConnectionState.Connected;
         private bool Connecting => _clientConnectionState != null && _clientConnectionState.Connecting;
@@ -46,7 +54,7 @@ namespace NetFrame.Client
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
 
-        public void Connect(string ip, int port)
+        public void Connect(string ip, int port, string rsaKeyFullPath = "", string securityToken = "")
         {
             if (Connecting || Connected)
             {
@@ -57,6 +65,16 @@ namespace NetFrame.Client
             _clientConnectionState = new ClientConnectionState(_maxMessageSize);
             _clientConnectionState.Connecting = true;
             _clientConnectionState.TcpClient.Client = null;
+            
+            _isConnectionProtection =
+                !string.IsNullOrWhiteSpace(rsaKeyFullPath) && !string.IsNullOrWhiteSpace(securityToken);
+            
+            if (_isConnectionProtection)
+            {
+                _netFrameEncryptor = new NetFrameCryptographer();
+                _rsaParameters = _netFrameEncryptor.LoadKey(rsaKeyFullPath);
+                _securityToken = securityToken;
+            }
             
             _clientConnectionState.ReceiveTcpThread = new Thread(() => 
             {
@@ -240,8 +258,23 @@ namespace NetFrame.Client
                 return false;
             }
             
-            LogCall?.Invoke(NetworkLogType.Warning, "[Telepathy] Client.Send: not connected!");
+            LogCall?.Invoke(NetworkLogType.Warning, "[NetFrameClient.Send] Client.Send: not connected!");
             return false;
+        }
+        
+        private void SendSecurityToken()
+        {
+            if (_isConnectionProtection)
+            {
+                var encryptedBytes = _netFrameEncryptor.EncryptToken(_rsaParameters, _securityToken);
+
+                Send(encryptedBytes);
+            }
+            else
+            {
+                LogCall?.Invoke(NetworkLogType.Warning, "[NetFrameClient.SendSecurityToken] Server is Protect. RSA key and security token required!");
+                Disconnect();
+            }
         }
 
         private void BeginReadDataframe(ArraySegment<byte> receiveBytes)
@@ -263,7 +296,7 @@ namespace NetFrame.Client
 
             if (firstByte == '@')
             {
-                //SendSecurityToken();
+                SendSecurityToken();
                 return;
             }
 

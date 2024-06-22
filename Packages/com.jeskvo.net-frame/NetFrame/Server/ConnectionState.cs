@@ -8,12 +8,13 @@ namespace NetFrame.Server
     {
         public TcpClient TcpClient;
         public readonly SendQueue SendQueue;
-        public CancellationToken ValidatePendingCancellationToken;
+        public bool IsValidated;
         
         public readonly ManualResetEvent SendPending;
 
         public ConnectionState(TcpClient tcpClient, int maxMessageSize)
         {
+            IsValidated = false;
             TcpClient = tcpClient;
             SendPending = new ManualResetEvent(false);
             SendQueue = new SendQueue(maxMessageSize);

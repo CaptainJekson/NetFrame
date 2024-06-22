@@ -26,7 +26,7 @@ namespace Examples
             _netFrameServer = new NetFrameServer(50000);
             
             _netFrameServer.Start(8080, 10, Path.Combine(Application.dataPath + "/RSAKeys/privateRSAKey.xml"),
-                "fk2kgb3kggl3jgl3nlg3g3");
+                "fk2kgb3kggl3jgl3nlg3g312");
 
             _netFrameServer.ClientConnection += OnClientConnection;
             _netFrameServer.ClientDisconnect += OnClientDisconnect;
