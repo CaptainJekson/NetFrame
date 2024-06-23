@@ -15,13 +15,17 @@ namespace NetFrame.Client
 {
     public class NetFrameClient
     {
-        private readonly int _sendQueueLimit = 10000;
-        private readonly int _receiveQueueLimit = 10000;
-        private readonly bool _noDelay = true;
+        private const int SendQueueLimit = 10000;
+        private const int ReceiveQueueLimit = 10000;
+        private const bool NoDelay = true;
+   
+        private const int SendTimeout = 5000;
+        private const int ReceiveTimeout = 0;
+        private const char DataframeSeparatorTrigger = '\n';
+        private const char ConnectionSuccessfulTrigger = '#';
+        private const char SecurityTokenRequestTrigger = '@';
+        
         private readonly int _maxMessageSize;
-        private readonly int _sendTimeout = 5000;
-        private readonly int _receiveTimeout = 0;
-
         private ClientConnectionState _clientConnectionState;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         private readonly NetFrameWriter _writer;
@@ -78,11 +82,16 @@ namespace NetFrame.Client
             
             _clientConnectionState.ReceiveTcpThread = new Thread(() => 
             {
-                ReceiveTcpThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
+                ReceiveTcpThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, NoDelay, SendTimeout, ReceiveTimeout, ReceiveQueueLimit);
             });
             
             _clientConnectionState.ReceiveTcpThread.IsBackground = true;
             _clientConnectionState.ReceiveTcpThread.Start();
+        }
+        
+        public void ChangeSecurityToken(string securityToken)
+        {
+            _securityToken = securityToken;
         }
 
         public void Disconnect()
@@ -97,9 +106,8 @@ namespace NetFrame.Client
         {
             _writer.Reset();
             dataframe.Write(_writer);
-
-            var separator = '\n';
-            var headerDataframe = GetByTypeName(dataframe) + separator;
+            
+            var headerDataframe = GetByTypeName(dataframe) + DataframeSeparatorTrigger;
 
             var heaterDataframe = Encoding.UTF8.GetBytes(headerDataframe);
             var dataDataframe = _writer.ToArraySegment();
@@ -242,14 +250,14 @@ namespace NetFrame.Client
             {
                 if (message.Count <= _maxMessageSize)
                 {
-                    if (_clientConnectionState.SendQueue.Count < _sendQueueLimit)
+                    if (_clientConnectionState.SendQueue.Count < SendQueueLimit)
                     {
                         _clientConnectionState.SendQueue.Enqueue(message);
                         _clientConnectionState.SendPending.Set();
                         return true;
                     }
 
-                    LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
+                    LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
                     _clientConnectionState.TcpClient.Close();
                     return false;
                 }
@@ -288,13 +296,13 @@ namespace NetFrame.Client
 
             var firstByte = allBytes[0];
             
-            if (firstByte == '#')
+            if (firstByte == ConnectionSuccessfulTrigger)
             {
                 ReadLocalConnectionId(allBytes);
                 return;
             }
 
-            if (firstByte == '@')
+            if (firstByte == SecurityTokenRequestTrigger)
             {
                 SendSecurityToken();
                 return;
@@ -305,7 +313,7 @@ namespace NetFrame.Client
             {
                 var b = receiveBytes[index];
 
-                if (b == '\n')
+                if (b == DataframeSeparatorTrigger)
                 {
                     tempIndex = index + 1;
                     break;

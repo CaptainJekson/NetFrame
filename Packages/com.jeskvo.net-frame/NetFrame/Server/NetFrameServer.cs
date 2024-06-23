@@ -12,7 +12,6 @@ using NetFrame.Enums;
 using NetFrame.Queues;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
-using UnityEngine;
 using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace NetFrame.Server
@@ -23,6 +22,9 @@ namespace NetFrame.Server
         private const int SendQueueLimit = 10000;
         private const int ReceiveQueueLimit = 10000;
         private const int SecretMessageLength = 128;
+        private const char DataframeSeparatorTrigger = '\n';
+        private const char ConnectionSuccessfulTrigger = '#';
+        private const char SecurityTokenRequestTrigger = '@';
 
         private readonly int _receiveTimeout = 0;
         private readonly bool _noDelay = true;
@@ -184,9 +186,8 @@ namespace NetFrame.Server
         {
             _writer.Reset();
             dataframe.Write(_writer);
-
-            var separator = '\n';
-            var headerDataframe = GetByTypeName(dataframe) + separator;
+            
+            var headerDataframe = GetByTypeName(dataframe) + DataframeSeparatorTrigger;
 
             var heaterDataframe = Encoding.UTF8.GetBytes(headerDataframe);
             var dataDataframe = _writer.ToArraySegment();
@@ -403,7 +404,7 @@ namespace NetFrame.Server
         {
             var header = new[]
             {
-                (byte)'#',
+                (byte)ConnectionSuccessfulTrigger,
             };
 
             var connectionIdBytes = BitConverter.GetBytes(connectionId);
@@ -415,7 +416,7 @@ namespace NetFrame.Server
         {
             var header = new[]
             {
-                (byte)'@',
+                (byte)SecurityTokenRequestTrigger,
             };
 
             Send(connectionId, header);
@@ -498,7 +499,7 @@ namespace NetFrame.Server
             {
                 var b = receiveBytes[index];
 
-                if (b == '\n')
+                if (b == DataframeSeparatorTrigger)
                 {
                     tempIndex = index + 1;
                     break;
