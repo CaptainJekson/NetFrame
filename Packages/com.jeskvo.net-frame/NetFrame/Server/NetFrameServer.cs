@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -72,9 +73,10 @@ namespace NetFrame.Server
             {
                 return false;
             }
-
+            
             _isConnectionProtection =
-                !string.IsNullOrWhiteSpace(rsaKeyFullPath) && !string.IsNullOrWhiteSpace(securityToken);
+                !string.IsNullOrWhiteSpace(rsaKeyFullPath) && !string.IsNullOrWhiteSpace(securityToken) 
+                                                           && File.Exists(rsaKeyFullPath);
 
             if (_isConnectionProtection)
             {
