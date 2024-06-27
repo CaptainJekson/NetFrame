@@ -20,7 +20,8 @@ namespace Examples
             
             _netFrameClient = new NetFrameClient(50000);
             
-            _netFrameClient.Connect(_ipAddress, 8080);
+            _netFrameClient.Connect(_ipAddress, 8080, Application.dataPath + "/RSAKeys/publicRSAKey.xml",
+            "fk2kgb3kggl3jgl3nlg3g312");
 
             _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
             _netFrameClient.LogCall += OnLog;
