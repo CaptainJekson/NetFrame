@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using NetFrame.Enums;
 using NetFrame.Server;
@@ -9,7 +10,7 @@ using UnityEngine;
 
 namespace Examples
 {
-    public class ServerManager : MonoBehaviour//
+    public class ServerManager : MonoBehaviour
     {
         public static ServerManager Instance;
         
@@ -24,7 +25,8 @@ namespace Examples
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             _netFrameServer = new NetFrameServer(50000);
             
-            _netFrameServer.Start(8080, 10);
+            _netFrameServer.Start(8080, 10, Path.Combine(Application.dataPath + "/RSAKeys/privateRSAKey.xml"),
+                "fk2kgb3kggl3jgl3nlg3g312");
 
             _netFrameServer.ClientConnection += OnClientConnection;
             _netFrameServer.ClientDisconnect += OnClientDisconnect;

@@ -3,8 +3,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using NetFrame.Encryption;
 using NetFrame.Enums;
 using NetFrame.Utils;
 using NetFrame.WriteAndRead;
@@ -13,17 +15,27 @@ namespace NetFrame.Client
 {
     public class NetFrameClient
     {
-        private readonly int _sendQueueLimit = 10000;
-        private readonly int _receiveQueueLimit = 10000;
-        private readonly bool _noDelay = true;
+        private const int SendQueueLimit = 10000;
+        private const int ReceiveQueueLimit = 10000;
+        private const bool NoDelay = true;
+   
+        private const int SendTimeout = 5000;
+        private const int ReceiveTimeout = 0;
+        private const char DataframeSeparatorTrigger = '\n';
+        private const char ConnectionSuccessfulTrigger = '#';
+        private const char SecurityTokenRequestTrigger = '@';
+        
         private readonly int _maxMessageSize;
-        private readonly int _sendTimeout = 5000;
-        private readonly int _receiveTimeout = 0;
-
         private ClientConnectionState _clientConnectionState;
         private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers;
         private readonly NetFrameWriter _writer;
         private NetFrameReader _reader;
+        
+        //Connection security
+        private INetFrameEncryptor _netFrameEncryptor;
+        private RSAParameters _rsaParameters;
+        private string _securityToken;
+        private bool _isConnectionProtection;
 
         private bool Connected => _clientConnectionState != null && _clientConnectionState.Connected;
         private bool Connecting => _clientConnectionState != null && _clientConnectionState.Connecting;
@@ -46,7 +58,7 @@ namespace NetFrame.Client
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
 
-        public void Connect(string ip, int port)
+        public void Connect(string ip, int port, string rsaKeyFullPath = "", string securityToken = "")
         {
             if (Connecting || Connected)
             {
@@ -58,13 +70,28 @@ namespace NetFrame.Client
             _clientConnectionState.Connecting = true;
             _clientConnectionState.TcpClient.Client = null;
             
+            _isConnectionProtection =
+                !string.IsNullOrWhiteSpace(rsaKeyFullPath) && !string.IsNullOrWhiteSpace(securityToken);
+            
+            if (_isConnectionProtection)
+            {
+                _netFrameEncryptor = new NetFrameCryptographer();
+                _rsaParameters = _netFrameEncryptor.LoadKey(rsaKeyFullPath);
+                _securityToken = securityToken;
+            }
+            
             _clientConnectionState.ReceiveTcpThread = new Thread(() => 
             {
-                ReceiveTcpThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, _noDelay, _sendTimeout, _receiveTimeout, _receiveQueueLimit);
+                ReceiveTcpThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, NoDelay, SendTimeout, ReceiveTimeout, ReceiveQueueLimit);
             });
             
             _clientConnectionState.ReceiveTcpThread.IsBackground = true;
             _clientConnectionState.ReceiveTcpThread.Start();
+        }
+        
+        public void ChangeSecurityToken(string securityToken)
+        {
+            _securityToken = securityToken;
         }
 
         public void Disconnect()
@@ -79,9 +106,8 @@ namespace NetFrame.Client
         {
             _writer.Reset();
             dataframe.Write(_writer);
-
-            var separator = '\n';
-            var headerDataframe = GetByTypeName(dataframe) + separator;
+            
+            var headerDataframe = GetByTypeName(dataframe) + DataframeSeparatorTrigger;
 
             var heaterDataframe = Encoding.UTF8.GetBytes(headerDataframe);
             var dataDataframe = _writer.ToArraySegment();
@@ -224,14 +250,14 @@ namespace NetFrame.Client
             {
                 if (message.Count <= _maxMessageSize)
                 {
-                    if (_clientConnectionState.SendQueue.Count < _sendQueueLimit)
+                    if (_clientConnectionState.SendQueue.Count < SendQueueLimit)
                     {
                         _clientConnectionState.SendQueue.Enqueue(message);
                         _clientConnectionState.SendPending.Set();
                         return true;
                     }
 
-                    LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {_sendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
+                    LogCall?.Invoke(NetworkLogType.Warning, $"[NetFrameClient.Send] Client.Send: sendPipe reached limit of {SendQueueLimit}. This can happen if we call send faster than the network can process messages. Disconnecting to avoid ever growing memory & latency.");
                     _clientConnectionState.TcpClient.Close();
                     return false;
                 }
@@ -240,8 +266,23 @@ namespace NetFrame.Client
                 return false;
             }
             
-            LogCall?.Invoke(NetworkLogType.Warning, "[Telepathy] Client.Send: not connected!");
+            LogCall?.Invoke(NetworkLogType.Warning, "[NetFrameClient.Send] Client.Send: not connected!");
             return false;
+        }
+        
+        private void SendSecurityToken()
+        {
+            if (_isConnectionProtection)
+            {
+                var encryptedBytes = _netFrameEncryptor.EncryptToken(_rsaParameters, _securityToken);
+
+                Send(encryptedBytes);
+            }
+            else
+            {
+                LogCall?.Invoke(NetworkLogType.Warning, "[NetFrameClient.SendSecurityToken] Server is Protect. RSA key and security token required!");
+                Disconnect();
+            }
         }
 
         private void BeginReadDataframe(ArraySegment<byte> receiveBytes)
@@ -254,10 +295,16 @@ namespace NetFrame.Client
             }
 
             var firstByte = allBytes[0];
-
-            if (firstByte == '#')
+            
+            if (firstByte == ConnectionSuccessfulTrigger)
             {
                 ReadLocalConnectionId(allBytes);
+                return;
+            }
+
+            if (firstByte == SecurityTokenRequestTrigger)
+            {
+                SendSecurityToken();
                 return;
             }
 
@@ -266,7 +313,7 @@ namespace NetFrame.Client
             {
                 var b = receiveBytes[index];
 
-                if (b == '\n')
+                if (b == DataframeSeparatorTrigger)
                 {
                     tempIndex = index + 1;
                     break;
