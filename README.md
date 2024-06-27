@@ -264,3 +264,30 @@ public struct UsersDataframe : INetworkDataframe
 
 Using the same analogy, you can implement data frames with collections of
 `Dictionary` and other types.
+
+## 📖 Protected connection
+
+Secure client connections to the server can be established using RSA encryption. 
+This effectively prevents unauthorized access to your server.
+
+First, you need to generate a pair of RSA keys. Use a key generator:
+
+Key generator for Windows: [NetFrameKeyGeneratorForWindows.zip](https://github.com/user-attachments/files/16010110/NetFrameKeyGeneratorForWindows.zip)
+
+Key generator for MacOS: [NetFrameKeygenForMacOS.zip](https://github.com/user-attachments/files/16010106/NetFrameKeygenForMacOS.zip)
+
+Two files will be generated: `publicRSAKey.xml` и `privateRSAKey.xml`.
+The public key must be placed on the client, and the private key on the server.
+
+On client:
+```c#
+_netFrameServer.Start(8080, 10, Path.Combine(Application.dataPath + "/RSAKeys/privateRSAKey.xml"), "fk2kgb3kggl3jgl3nlg3g312");
+```
+
+On server:
+```c#
+_netFrameClient.Connect("127.0.0.1", 8080, Application.dataPath + "/RSAKeys/publicRSAKey.xml", "fk2kgb3kggl3jgl3nlg3g312");
+```
+
+The last parameters specify the path to the key and the token that will be encrypted on the client and decrypted on the server using RSA keys.
+If these parameters are not specified or the path is incorrect, the secure connection will not work.
