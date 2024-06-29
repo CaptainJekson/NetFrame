@@ -27,6 +27,12 @@ namespace NetFrame.Encryption
             return parameters;
         }
 
+        public RSAParameters LoadKeyFromXml(string rsaXmlParameters)
+        {
+            var parameters = ImportParametersFromXml(rsaXmlParameters);
+            return parameters;
+        }
+
         /// <summary>
         /// Encrypts a token using a public key on the client
         /// </summary>

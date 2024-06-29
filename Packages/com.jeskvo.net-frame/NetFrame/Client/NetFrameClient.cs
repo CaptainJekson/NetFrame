@@ -88,6 +88,42 @@ namespace NetFrame.Client
             _clientConnectionState.ReceiveTcpThread.IsBackground = true;
             _clientConnectionState.ReceiveTcpThread.Start();
         }
+
+        public void ConnectWithProtection(string ip, int port, string rsaXmlParameters, string securityToken)
+        {
+            if (Connecting || Connected)
+            {
+                LogCall?.Invoke(NetworkLogType.Warning, "[NetFrameClient.Connect] Client can not create connection because an existing connection is connecting or connected");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(rsaXmlParameters) || string.IsNullOrWhiteSpace(securityToken))
+            {
+                LogCall?.Invoke(NetworkLogType.Warning, "[NetFrameClient.Connect] Client can not create protected connection because rsa key and security token are not valid");
+                return;
+            }
+            
+            _isConnectionProtection = true;
+            
+            _clientConnectionState = new ClientConnectionState(_maxMessageSize);
+            _clientConnectionState.Connecting = true;
+            _clientConnectionState.TcpClient.Client = null;
+            
+            if (_isConnectionProtection)
+            {
+                _netFrameEncryptor = new NetFrameCryptographer();
+                _rsaParameters = _netFrameEncryptor.LoadKeyFromXml(rsaXmlParameters);
+                _securityToken = securityToken;
+            }
+            
+            _clientConnectionState.ReceiveTcpThread = new Thread(() => 
+            {
+                ReceiveTcpThreadFunction(_clientConnectionState, ip, port, _maxMessageSize, NoDelay, SendTimeout, ReceiveTimeout, ReceiveQueueLimit);
+            });
+            
+            _clientConnectionState.ReceiveTcpThread.IsBackground = true;
+            _clientConnectionState.ReceiveTcpThread.Start();
+        }
         
         public void ChangeSecurityToken(string securityToken)
         {
