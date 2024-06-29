@@ -58,7 +58,29 @@ namespace NetFrame.Client
             _handlers = new ConcurrentDictionary<Type, List<Delegate>>();
         }
 
-        public void Connect(string ip, int port, string rsaKeyFullPath = "", string securityToken = "")
+        public void SetProtectionWithFilePath(string rsaKeyFullPath, string securityToken)
+        {
+            _isConnectionProtection = !string.IsNullOrWhiteSpace(rsaKeyFullPath) && !string.IsNullOrWhiteSpace(securityToken);
+            if (_isConnectionProtection)
+            {
+                _netFrameEncryptor = new NetFrameCryptographer();
+                _rsaParameters = _netFrameEncryptor.LoadKey(rsaKeyFullPath);
+                _securityToken = securityToken;
+            }
+        }
+
+        public void SetProtectionWithXml(string rsaXmlParameters, string securityToken)
+        {
+            _isConnectionProtection = !string.IsNullOrWhiteSpace(rsaXmlParameters) && !string.IsNullOrWhiteSpace(securityToken);
+            if (_isConnectionProtection)
+            {
+                _netFrameEncryptor = new NetFrameCryptographer();
+                _rsaParameters = _netFrameEncryptor.LoadKeyFromXml(rsaXmlParameters);
+                _securityToken = securityToken;
+            }
+        }
+
+        public void Connect(string ip, int port)
         {
             if (Connecting || Connected)
             {
@@ -69,16 +91,6 @@ namespace NetFrame.Client
             _clientConnectionState = new ClientConnectionState(_maxMessageSize);
             _clientConnectionState.Connecting = true;
             _clientConnectionState.TcpClient.Client = null;
-            
-            _isConnectionProtection =
-                !string.IsNullOrWhiteSpace(rsaKeyFullPath) && !string.IsNullOrWhiteSpace(securityToken);
-            
-            if (_isConnectionProtection)
-            {
-                _netFrameEncryptor = new NetFrameCryptographer();
-                _rsaParameters = _netFrameEncryptor.LoadKey(rsaKeyFullPath);
-                _securityToken = securityToken;
-            }
             
             _clientConnectionState.ReceiveTcpThread = new Thread(() => 
             {
