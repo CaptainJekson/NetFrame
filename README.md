@@ -279,15 +279,29 @@ Key generator for MacOS: [NetFrameKeygenForMacOS.zip](https://github.com/user-at
 Two files will be generated: `publicRSAKey.xml` и `privateRSAKey.xml`.
 The public key must be placed on the client, and the private key on the server.
 
-On client:
+On the server, before the Start method is called, call:
 ```c#
-_netFrameServer.Start(8080, 10, Path.Combine(Application.dataPath + "/RSAKeys/privateRSAKey.xml"), "fk2kgb3kggl3jgl3nlg3g312");
+_netFrameServer.Start(8080, 10);
+_netFrameServer.SetProtectionWithFilePath(Application.dataPath + "/RSAKeys/privateRSAKey.xml", "fk2kgb3kggl3jgl3nlg3g312")
+```
+Or if you need to pass the XML as a string:
+```c#
+_netFrameServer.Start(8080, 10);
+_netFrameServer.SetProtectionWithXml(rsaXmlParameters, "fk2kgb3kggl3jgl3nlg3g312")
 ```
 
-On server:
+On the client, before the Connect method is called, call:
 ```c#
-_netFrameClient.Connect("127.0.0.1", 8080, Application.dataPath + "/RSAKeys/publicRSAKey.xml", "fk2kgb3kggl3jgl3nlg3g312");
+_netFrameClient.Connect("127.0.0.1", 8080);
+_netFrameClient.SetProtectionWithFilePath(Application.dataPath + "/RSAKeys/privateRSAKey.xml", "fk2kgb3kggl3jgl3nlg3g312")
+```
+Or if you need to pass the XML as a string:
+```c#
+_netFrameClient.Connect("127.0.0.1", 8080);
+_netFrameClient.SetProtectionWithXml(rsaXmlParameters, "fk2kgb3kggl3jgl3nlg3g312")
 ```
 
-The last parameters specify the path to the key and the token that will be encrypted on the client and decrypted on the server using RSA keys.
-If these parameters are not specified or the path is incorrect, the secure connection will not work.
+The `SetProtectionWithFilePath` method specifies the path to the key and token.
+The `SetProtectionWithXml` method specifies the content of the XML file as a string and the token.
+The token will be encrypted on the client and decrypted on the server using RSA keys.
+If these methods are not called, the secure connection will not work.
