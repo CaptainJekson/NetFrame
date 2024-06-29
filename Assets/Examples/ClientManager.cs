@@ -28,8 +28,8 @@ namespace Examples
             string rsaXmlParameters = LoadRsaParameters();
             Debug.Log("Loaded rsa parameters: " + rsaXmlParameters);
             
-            _netFrameClient.ConnectWithProtection(_ipAddress, 8080, rsaXmlParameters,
-            "fk2kgb3kggl3jgl3nlg3g312");
+            _netFrameClient.SetProtectionWithXml(rsaXmlParameters, "fk2kgb3kggl3jgl3nlg3g312");
+            _netFrameClient.Connect(_ipAddress, 8080);
 
             _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
             _netFrameClient.LogCall += OnLog;
