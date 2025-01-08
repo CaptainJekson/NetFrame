@@ -25,9 +25,15 @@ namespace NetFrame.Utils
 			}
 		}
 
-		public static bool TryGetByKey(string key, out INetworkDataframe value)
+		public static bool TryGetByKey(string key, out INetworkDataframe dataframe)
 		{
-			return Dataframes.TryGetValue(key, out value);
+			if (!Dataframes.TryGetValue(key, out dataframe))
+			{
+				return false;
+			}
+
+			dataframe = Activator.CreateInstance(dataframe.GetType()) as INetworkDataframe;
+			return true;
 		}
 	}
 }
