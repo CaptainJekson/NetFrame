@@ -7,7 +7,7 @@ namespace NetFrame.Utils
 {
 	public static class NetFrameDataframeCollection
 	{
-		private static readonly Dictionary<string, INetworkDataframe> Dataframes = new();
+		private static readonly Dictionary<string, Func<INetworkDataframe>> Dataframes = new();
 
 		public static void Initialize(Assembly assembly)
 		{
@@ -21,13 +21,20 @@ namespace NetFrame.Utils
 					continue;
 				}
 				
-				Dataframes.Add(type.Name, (INetworkDataframe) Activator.CreateInstance(type));
+				Dataframes.Add(type.Name, () => (INetworkDataframe)Activator.CreateInstance(type));
 			}
 		}
 
 		public static bool TryGetByKey(string key, out INetworkDataframe value)
 		{
-			return Dataframes.TryGetValue(key, out value);
+			if (!Dataframes.TryGetValue(key, out var factory))
+			{
+				value = default;
+				return false;
+			}
+
+			value = factory.Invoke();
+			return true;
 		}
 	}
 }
