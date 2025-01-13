@@ -474,8 +474,9 @@ namespace NetFrame.Server
         {
             var allBytes = receiveBytes.Array;
 
-            if (allBytes == null)
+            if (allBytes == null || receiveBytes.Count != SecretMessageLength)
             {
+                Disconnect(connectionId);
                 return;
             }
 
