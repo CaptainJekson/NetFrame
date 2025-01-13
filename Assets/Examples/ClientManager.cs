@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using System.Threading;
 using NetFrame.Client;
@@ -5,11 +6,15 @@ using NetFrame.Enums;
 using NetFrame.Utils;
 using Samples.Dataframes;
 using UnityEngine;
+using UnityEngine.Networking;
+using Random = UnityEngine.Random;
 
 namespace Examples
 {
     public class ClientManager : MonoBehaviour
     {
+        private const string FilePath = "/RSAKeys/publicRSAKey.xml";
+        
         private readonly string _ipAddress = "127.0.0.1";
 
         private NetFrameClient _netFrameClient;
@@ -19,9 +24,12 @@ namespace Examples
             NetFrameDataframeCollection.Initialize(Assembly.GetExecutingAssembly());
             
             _netFrameClient = new NetFrameClient(50000);
+
+            string rsaXmlParameters = LoadRsaParameters();
+            Debug.Log("Loaded rsa parameters: " + rsaXmlParameters);
             
-            _netFrameClient.Connect(_ipAddress, 8080, Application.dataPath + "/RSAKeys/publicRSAKey.xml",
-            "fk2kgb3kggl3jgl3nlg3g312");
+            _netFrameClient.SetProtectionWithXml(rsaXmlParameters, "fk2kgb3kggl3jgl3nlg3g312");
+            _netFrameClient.Connect(_ipAddress, 8080);
 
             _netFrameClient.ConnectionSuccessful += OnConnectionSuccessful;
             _netFrameClient.LogCall += OnLog;
@@ -136,6 +144,21 @@ namespace Examples
         private void OnApplicationQuit()
         {
             _netFrameClient.Disconnect();
+        }
+
+        private string LoadRsaParameters()
+        {
+            var request = UnityWebRequest.Get(Application.streamingAssetsPath + FilePath);
+            request.SendWebRequest();
+
+            while (!request.isDone)
+            {
+                if (!string.IsNullOrWhiteSpace(request.error))
+                    throw new Exception("File load error");
+            }
+
+            string parameters = System.Text.Encoding.Default.GetString(request.downloadHandler.data);
+            return parameters;
         }
     }
 }

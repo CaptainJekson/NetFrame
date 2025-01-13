@@ -161,6 +161,7 @@ var testDataframe = new TestDataframe
 };
 _server.Send(ref testDataframe, 1); //send to client with id = 1
 _server.SendAll(ref testDataframe); //send to all clients
+_server.SendAllExcept(ref testDataframe, 1); //send to all clients except client with Id = 1
 ```
 
 ### Listen
@@ -230,10 +231,13 @@ public struct UsersDataframe : INetworkDataframe
 
     public void Write(NetFrameWriter writer)
     {
-        writer.WriteInt(Users?.Count ?? 0);
+       var hasUsers = Users != null;
+       writer.WriteBool(hasUsers);
 
-       if (Users != null)
+       if (hasUsers)
        {
+           writer.WriteInt(Users.Count);
+
            foreach (var user in Users)
            {
                writer.Write(user);
@@ -244,19 +248,60 @@ public struct UsersDataframe : INetworkDataframe
 
     public void Read(NetFrameReader reader)
     {
-        var count = reader.ReadInt();
+        if (reader.ReadBool())
+        {
+            var count = reader.ReadInt();
+            Users = new List<UserNetworkModel>();
 
-       if (count > 0)
-       {
-           Users = new List<UserNetworkModel>();
-           for (var i = 0; i < count; i++)
-           {
-               Users.Add(reader.Read<UserNetworkModel>());
-           }
-       }
+            for (var i = 0; i < count; i++)
+            {
+                Users.Add(reader.Read<UserNetworkModel>());
+            }
+        }
     }
 }
 ```
 
 Using the same analogy, you can implement data frames with collections of
 `Dictionary` and other types.
+
+## 📖 Protected connection
+
+Secure client connections to the server can be established using RSA encryption. 
+This effectively prevents unauthorized access to your server.
+
+First, you need to generate a pair of RSA keys. Use a key generator:
+
+Key generator for Windows: [NetFrameKeyGeneratorForWindows.zip](https://github.com/user-attachments/files/16010110/NetFrameKeyGeneratorForWindows.zip)
+
+Key generator for MacOS: [NetFrameKeygenForMacOS.zip](https://github.com/user-attachments/files/16010106/NetFrameKeygenForMacOS.zip)
+
+Two files will be generated: `publicRSAKey.xml` и `privateRSAKey.xml`.
+The public key must be placed on the client, and the private key on the server.
+
+On the server, before the Start method is called, call:
+```c#
+_netFrameServer.Start(8080, 10);
+_netFrameServer.SetProtectionWithFilePath(Application.dataPath + "/RSAKeys/privateRSAKey.xml", "fk2kgb3kggl3jgl3nlg3g312")
+```
+Or if you need to pass the XML as a string:
+```c#
+_netFrameServer.Start(8080, 10);
+_netFrameServer.SetProtectionWithXml(rsaXmlParameters, "fk2kgb3kggl3jgl3nlg3g312")
+```
+
+On the client, before the Connect method is called, call:
+```c#
+_netFrameClient.Connect("127.0.0.1", 8080);
+_netFrameClient.SetProtectionWithFilePath(Application.dataPath + "/RSAKeys/privateRSAKey.xml", "fk2kgb3kggl3jgl3nlg3g312")
+```
+Or if you need to pass the XML as a string:
+```c#
+_netFrameClient.Connect("127.0.0.1", 8080);
+_netFrameClient.SetProtectionWithXml(rsaXmlParameters, "fk2kgb3kggl3jgl3nlg3g312")
+```
+
+The `SetProtectionWithFilePath` method specifies the path to the key and token.
+The `SetProtectionWithXml` method specifies the content of the XML file as a string and the token.
+The token will be encrypted on the client and decrypted on the server using RSA keys.
+If these methods are not called, the secure connection will not work.

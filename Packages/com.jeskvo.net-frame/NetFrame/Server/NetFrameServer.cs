@@ -67,22 +67,36 @@ namespace NetFrame.Server
             _writer = new NetFrameWriter();
         }
 
-        public bool Start(int port, int maxClients, string rsaKeyFullPath = "", string securityToken = "")
+        public void SetProtectionWithFilePath(string rsaKeyFullPath, string securityToken)
         {
-            if (Active)
-            {
-                return false;
-            }
-            
             _isConnectionProtection =
                 !string.IsNullOrWhiteSpace(rsaKeyFullPath) && !string.IsNullOrWhiteSpace(securityToken) 
                                                            && File.Exists(rsaKeyFullPath);
-
+            
             if (_isConnectionProtection)
             {
                 _netFrameDecryptor = new NetFrameCryptographer();
                 _rsaParameters = _netFrameDecryptor.LoadKey(rsaKeyFullPath);
                 _securityToken = securityToken;
+            }
+        }
+
+        public void SetProtectionWithXml(string rsaXmlParameters, string securityToken)
+        {
+            _isConnectionProtection = !string.IsNullOrWhiteSpace(rsaXmlParameters) && !string.IsNullOrWhiteSpace(securityToken);
+            if (_isConnectionProtection)
+            {
+                _netFrameDecryptor = new NetFrameCryptographer();
+                _rsaParameters = _netFrameDecryptor.LoadKeyFromXml(rsaXmlParameters);
+                _securityToken = securityToken;
+            }
+        }
+
+        public bool Start(int port, int maxClients)
+        {
+            if (Active)
+            {
+                return false;
             }
 
             _receiveQueue = new ReceiveQueue(_maxMessageSize);
