@@ -259,12 +259,24 @@ namespace NetFrame.Server
         //the client's IP address is sometimes required by the server, for example, for bans
         public string GetClientAddress(int connectionId)
         {
-            if (_clients.TryGetValue(connectionId, out ConnectionState connection))
+            try
             {
-                return ((IPEndPoint)connection.TcpClient.Client.RemoteEndPoint).Address.ToString();
+                if (_clients.TryGetValue(connectionId, out var connection))
+                {
+                    if (connection.TcpClient.Client.RemoteEndPoint is IPEndPoint remoteEndPoint)
+                    {
+                        return remoteEndPoint.Address.IsIPv4MappedToIPv6 
+                            ? remoteEndPoint.Address.MapToIPv4().ToString() 
+                            : remoteEndPoint.Address.ToString();
+                    }
+                }
+            }
+            catch
+            {
+                return string.Empty;
             }
 
-            return "";
+            return string.Empty;
         }
 
         // disconnect (kick) a client
